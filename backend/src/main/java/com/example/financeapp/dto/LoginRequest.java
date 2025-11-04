@@ -1,6 +1,5 @@
 package com.example.financeapp.dto;
 
-// TODO: thêm @NotBlank, etc.
 public class LoginRequest {
     private String email;
     private String password;
