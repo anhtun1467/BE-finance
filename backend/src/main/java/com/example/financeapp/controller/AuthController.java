@@ -42,10 +42,16 @@ public class AuthController {
         String fullName = request.get("fullName");
         String email = request.get("email");
         String password = request.get("password");
+        String confirmPassword = request.get("confirmPassword");
         String recaptchaToken = request.get("recaptchaToken");
-
-        if (fullName == null || email == null || password == null || recaptchaToken == null) {
-            res.put("error", "Thiếu thông tin đăng ký hoặc CAPTCHA");
+        // kiểm tra dữ liệu đầu vào
+        if (fullName == null || email == null || password == null || confirmPassword == null || recaptchaToken == null) {
+            res.put("error", "Thiếu thông tin đăng ký hoặc CAPTCHA (vui lòng gửi fullName, email, password, confirmPassword, recaptchaToken)");
+            return res;
+        }
+        // kiểm tra password confirm
+        if (!password.equals(confirmPassword)) {
+            res.put("error", "Mật khẩu và xác nhận mật khẩu không khớp");
             return res;
         }
 
