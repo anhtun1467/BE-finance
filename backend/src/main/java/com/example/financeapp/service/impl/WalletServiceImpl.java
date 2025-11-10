@@ -1,4 +1,3 @@
-
 package com.example.financeapp.service.impl;
 
 import com.example.financeapp.dto.CreateWalletRequest;
@@ -58,5 +57,11 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public List<Wallet> getWalletsByUserId(Long userId) {
         return walletRepository.findByUser_UserId(userId);
+    }
+
+    @Override
+    public Wallet getWalletDetails(Long userId, Long walletId) {
+        return walletRepository.findByWalletIdAndUser_UserId(walletId, userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy ví hoặc ví không thuộc quyền sở hữu của bạn."));
     }
 }

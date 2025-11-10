@@ -1,9 +1,9 @@
 package com.example.financeapp.controller;
 
 import com.example.financeapp.dto.CreateWalletRequest;
-import com.example.financeapp.entity.User; // <-- Thêm
+import com.example.financeapp.entity.User;
 import com.example.financeapp.entity.Wallet;
-import com.example.financeapp.repository.UserRepository; // <-- Thêm
+import com.example.financeapp.repository.UserRepository;
 import com.example.financeapp.service.WalletService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional; // <-- Thêm
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/wallets")
@@ -25,9 +25,7 @@ public class WalletController {
     private WalletService walletService;
 
     @Autowired
-    private UserRepository userRepository; // <-- Thêm
-
-    // (Hàm getCurrentUserId() không còn cần thiết và đã bị xoá)
+    private UserRepository userRepository;
 
     @PostMapping("/create")
     public ResponseEntity<Map<String, Object>> createWallet(@Valid @RequestBody CreateWalletRequest request) {
@@ -77,5 +75,33 @@ public class WalletController {
 
         Long userId = userOpt.get().getUserId();
         return ResponseEntity.ok(walletService.getWalletsByUserId(userId));
+    }
+
+    @GetMapping("/{walletId}")
+    public ResponseEntity<Map<String, Object>> getWalletDetails(@PathVariable Long walletId) {
+        Map<String, Object> res = new HashMap<>();
+        try {
+
+            String email = SecurityContextHolder.getContext().getAuthentication().getName();
+            Optional<User> userOpt = userRepository.findByEmail(email);
+
+            if (userOpt.isEmpty()) {
+                res.put("error", "Không tìm thấy thông tin user từ token");
+                return ResponseEntity.status(401).body(res);
+            }
+            Long userId = userOpt.get().getUserId();
+
+            Wallet wallet = walletService.getWalletDetails(userId, walletId);
+
+            res.put("wallet", wallet);
+            return ResponseEntity.ok(res);
+
+        } catch (RuntimeException e) {
+            res.put("error", e.getMessage());
+            return ResponseEntity.status(404).body(res);
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
     }
 }
