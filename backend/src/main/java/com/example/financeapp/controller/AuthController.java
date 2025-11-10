@@ -33,6 +33,7 @@ public class AuthController {
 
     @Autowired
     private RecaptchaService recaptchaService;
+
     private boolean isStrongPassword(String password) {
         if (password == null || password.length() < 8) return false;
         boolean hasUpper = false, hasLower = false, hasDigit = false, hasSpecial = false;
@@ -141,7 +142,7 @@ public class AuthController {
 
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
-            res.put("error", "Tài khoản không tồn tại");
+            res.put("error", "Tài khoản không tồn tại.");
             return res;
         }
 
@@ -179,19 +180,25 @@ public class AuthController {
 
         Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
         if (userOpt.isEmpty()) {
-            res.put("error", "Tài khoản không tồn tại.");
+            res.put("error", "Tài khoản hoặc mật khẩu không chính xác.");
             return res;
         }
 
         User user = userOpt.get();
 
         if (!user.isEnabled()) {
-            res.put("error", "Tài khoản không tồn tại.");
+            res.put("error", "Tài khoản hoặc mật khẩu không chính xác.");
+            return res;
+        }
+
+        // Kiểm tra nếu user chưa có mật khẩu (đăng nhập bằng Google)
+        if (user.getPasswordHash() == null || user.getPasswordHash().trim().isEmpty()) {
+            res.put("error", "Tài khoản này đăng nhập bằng Google. Vui lòng đăng nhập bằng Google hoặc đặt mật khẩu trong phần hồ sơ.");
             return res;
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            res.put("error", "Sai mật khẩu");
+            res.put("error", "Tài khoản hoặc mật khẩu không chính xác.");
             return res;
         }
 
@@ -296,93 +303,5 @@ public class AuthController {
         return res;
     }
 
-    // -----------------------------
-    // 👤 LẤY THÔNG TIN USER HIỆN TẠI
-    // -----------------------------
-    @GetMapping("/me")
-    public ResponseEntity<Map<String, Object>> getCurrentUser() {
-        Map<String, Object> res = new HashMap<>();
-        
-        try {
-            // Lấy email từ SecurityContext (đã được set bởi JwtAuthenticationFilter)
-            String email = SecurityContextHolder.getContext().getAuthentication().getName();
-            
-            Optional<User> userOpt = userRepository.findByEmail(email);
-            if (userOpt.isEmpty()) {
-                res.put("error", "User không tồn tại");
-                return ResponseEntity.status(404).body(res);
-            }
-            
-            User user = userOpt.get();
-            res.put("userId", user.getUserId());
-            res.put("fullName", user.getFullName());
-            res.put("email", user.getEmail());
-            res.put("provider", user.getProvider());
-            res.put("avatar", user.getAvatar());
-            res.put("enabled", user.isEnabled());
-            
-            return ResponseEntity.ok(res);
-        } catch (Exception e) {
-            res.put("error", "Không thể lấy thông tin user");
-            return ResponseEntity.status(500).body(res);
-        }
-    }
 
-    // -----------------------------
-    // ✏️ CẬP NHẬT THÔNG TIN CÁ NHÂN
-    // -----------------------------
-    @PutMapping("/profile")
-    public ResponseEntity<Map<String, Object>> updateProfile(@RequestBody UpdateProfileRequest request) {
-        Map<String, Object> res = new HashMap<>();
-        
-        try {
-            // Lấy email từ SecurityContext
-            String email = SecurityContextHolder.getContext().getAuthentication().getName();
-            
-            Optional<User> userOpt = userRepository.findByEmail(email);
-            if (userOpt.isEmpty()) {
-                res.put("error", "User không tồn tại");
-                return ResponseEntity.status(404).body(res);
-            }
-            
-            User user = userOpt.get();
-            
-            // Validate và cập nhật fullName
-            if (request.getFullName() != null && !request.getFullName().trim().isEmpty()) {
-                if (request.getFullName().trim().length() < 2) {
-                    res.put("error", "Tên phải có ít nhất 2 ký tự");
-                    return ResponseEntity.badRequest().body(res);
-                }
-                user.setFullName(request.getFullName().trim());
-            }
-            
-            // Cập nhật avatar (nếu có)
-            if (request.getAvatar() != null) {
-                // Validate avatar size (giới hạn 2MB cho base64)
-                if (request.getAvatar().length() > 3_000_000) {
-                    res.put("error", "Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 2MB");
-                    return ResponseEntity.badRequest().body(res);
-                }
-                user.setAvatar(request.getAvatar());
-            }
-            
-            // Lưu vào database
-            User savedUser = userRepository.save(user);
-            
-            // Trả về thông tin user đã cập nhật
-            res.put("message", "Cập nhật thông tin thành công");
-            res.put("user", Map.of(
-                "userId", savedUser.getUserId(),
-                "fullName", savedUser.getFullName(),
-                "email", savedUser.getEmail(),
-                "provider", savedUser.getProvider() != null ? savedUser.getProvider() : "",
-                "avatar", savedUser.getAvatar() != null ? savedUser.getAvatar() : ""
-            ));
-            
-            return ResponseEntity.ok(res);
-        } catch (Exception e) {
-            res.put("error", "Lỗi khi cập nhật thông tin: " + e.getMessage());
-            return ResponseEntity.status(500).body(res);
-        }
-    }
 }
