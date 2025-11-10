@@ -35,7 +35,7 @@ public class WebSecurityConfig {
 
                         // ✅ Static / public (nếu dùng)
                         .requestMatchers(
-                                "/", "/index.html","/wallets/**", "/assets/**", "/static/**", "/css/**", "/js/**", "/images/**"
+                                "/", "/index.html", "/assets/**", "/static/**", "/css/**", "/js/**", "/images/**"
                         ).permitAll()
 
                         // ✅ Swagger / OpenAPI (nếu dùng springdoc)
@@ -59,6 +59,11 @@ public class WebSecurityConfig {
                                 "/profile/change-password",
                                 "/profile/has-password",
                                 "/profile/default-password"
+                        ).authenticated()
+
+                        // ✅ Wallet APIs (yêu cầu đăng nhập) - bao gồm shared wallet
+                        .requestMatchers(
+                                "/wallets/**"
                         ).authenticated()
 
                         // (Tuỳ chọn) Cho phép GET "/" nếu bạn muốn test nhanh
