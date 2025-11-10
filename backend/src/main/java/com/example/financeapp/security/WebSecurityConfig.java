@@ -56,9 +56,6 @@ public class WebSecurityConfig {
                         .requestMatchers(
                                 "/auth/me",
                                 "/auth/profile",
-                                "/auth/has-password",
-                                "/auth/default-password",
-                                "/auth/change-password",
                                 "/auth/change-password/request-otp",
                                 "/auth/change-password/confirm",
                                 "/auth/change-password/resend-otp"
