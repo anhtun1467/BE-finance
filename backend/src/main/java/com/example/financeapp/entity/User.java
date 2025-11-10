@@ -37,6 +37,9 @@ public class User {
     @Column(name = "avatar", columnDefinition = "TEXT")
     private String avatar; // URL hoặc base64 của avatar
 
+    @Column(name = "has_default_password")
+    private boolean hasDefaultPassword = false; // true nếu đang dùng mật khẩu mặc định
+
     // --- Getters & Setters ---
 
     public Long getUserId() {
@@ -109,5 +112,13 @@ public class User {
 
     public void setAvatar(String avatar) {
         this.avatar = avatar;
+    }
+
+    public boolean isHasDefaultPassword() {
+        return hasDefaultPassword;
+    }
+
+    public void setHasDefaultPassword(boolean hasDefaultPassword) {
+        this.hasDefaultPassword = hasDefaultPassword;
     }
 }
