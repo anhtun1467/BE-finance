@@ -1,10 +1,18 @@
 package com.example.financeapp.service.impl;
 
 import com.example.financeapp.dto.CreateWalletRequest;
+import com.example.financeapp.dto.SharedWalletDTO;
+import com.example.financeapp.dto.UpdateWalletRequest;
+import com.example.financeapp.dto.WalletMemberDTO;
+import com.example.financeapp.entity.Currency;
 import com.example.financeapp.entity.User;
 import com.example.financeapp.entity.Wallet;
+import com.example.financeapp.entity.WalletMember;
+import com.example.financeapp.entity.WalletMember.WalletRole;
 import com.example.financeapp.repository.CurrencyRepository;
+import com.example.financeapp.repository.TransactionRepository;
 import com.example.financeapp.repository.UserRepository;
+import com.example.financeapp.repository.WalletMemberRepository;
 import com.example.financeapp.repository.WalletRepository;
 import com.example.financeapp.service.WalletService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class WalletServiceImpl implements WalletService {
@@ -26,6 +37,12 @@ public class WalletServiceImpl implements WalletService {
     @Autowired
     private CurrencyRepository currencyRepository;
 
+    @Autowired
+    private WalletMemberRepository walletMemberRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
     @Override
     @Transactional
     public Wallet createWallet(Long userId, CreateWalletRequest request) {
@@ -38,20 +55,46 @@ public class WalletServiceImpl implements WalletService {
             throw new RuntimeException("Loại tiền tệ không hợp lệ: " + request.getCurrencyCode());
         }
 
-        // 3. Kiểm tra tên ví trùng (trong phạm vi user)
+        // 3. Kiểm tra tên ví trùng trong phạm vi user
         if (walletRepository.existsByWalletNameAndUser_UserId(request.getWalletName(), userId)) {
             throw new RuntimeException("Bạn đã có ví tên \"" + request.getWalletName() + "\"");
         }
 
-        // 4. Tạo ví mới
         Wallet wallet = new Wallet();
         wallet.setUser(user);
         wallet.setWalletName(request.getWalletName().trim());
         wallet.setCurrencyCode(request.getCurrencyCode().toUpperCase());
         wallet.setBalance(BigDecimal.valueOf(request.getInitialBalance()));
         wallet.setDescription(request.getDescription());
+        wallet.setDefault(false);
 
-        return walletRepository.save(wallet);
+        if (Boolean.TRUE.equals(request.getSetAsDefault())) {
+            walletRepository.unsetDefaultWallet(userId, null);
+            wallet.setDefault(true);
+        }
+
+        Wallet savedWallet = walletRepository.save(wallet);
+
+        // 5. Tạo bản ghi thành viên (OWNER)
+        WalletMember ownerMember = new WalletMember(savedWallet, user, WalletRole.OWNER);
+        walletMemberRepository.save(ownerMember);
+
+        return savedWallet;
+    }
+
+    @Override
+    public Wallet updateWallet(Long walletId, Long userId, Map<String, Object> updates) {
+        return null;
+    }
+
+    @Override
+    @Transactional
+    public void setDefaultWallet(Long userId, Long walletId) {
+        walletRepository.findByWalletIdAndUser_UserId(walletId, userId)
+                .orElseThrow(() -> new RuntimeException("Ví không tồn tại"));
+
+        walletRepository.unsetDefaultWallet(userId, walletId);
+        walletRepository.setDefaultWallet(userId, walletId);
     }
 
     @Override
@@ -61,7 +104,185 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     public Wallet getWalletDetails(Long userId, Long walletId) {
-        return walletRepository.findByWalletIdAndUser_UserId(walletId, userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy ví hoặc ví không thuộc quyền sở hữu của bạn."));
+        if (!hasAccess(walletId, userId)) {
+            throw new RuntimeException("Bạn không có quyền truy cập ví này");
+        }
+
+        return walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy ví"));
+    }
+
+    // ================== SHARED WALLET ==================
+    @Override
+    public List<SharedWalletDTO> getAllAccessibleWallets(Long userId) {
+        List<WalletMember> memberships = walletMemberRepository.findByUser_UserId(userId);
+        List<SharedWalletDTO> result = new ArrayList<>();
+
+        for (WalletMember membership : memberships) {
+            Wallet wallet = membership.getWallet();
+            WalletMember owner = walletMemberRepository
+                    .findByWallet_WalletIdAndRole(wallet.getWalletId(), WalletRole.OWNER)
+                    .orElse(null);
+
+            long totalMembers = walletMemberRepository.countByWallet_WalletId(wallet.getWalletId());
+
+            SharedWalletDTO dto = new SharedWalletDTO();
+            dto.setWalletId(wallet.getWalletId());
+            dto.setWalletName(wallet.getWalletName());
+            dto.setCurrencyCode(wallet.getCurrencyCode());
+            dto.setBalance(wallet.getBalance());
+            dto.setDescription(wallet.getDescription());
+            dto.setMyRole(membership.getRole().toString());
+            dto.setTotalMembers((int) totalMembers);
+            dto.setCreatedAt(wallet.getCreatedAt());
+            dto.setUpdatedAt(wallet.getUpdatedAt());
+
+            if (owner != null) {
+                dto.setOwnerId(owner.getUser().getUserId());
+                dto.setOwnerName(owner.getUser().getFullName());
+            }
+
+            result.add(dto);
+        }
+
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public WalletMemberDTO shareWallet(Long walletId, Long ownerId, String memberEmail) {
+        Wallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException("Ví không tồn tại"));
+
+        if (!isOwner(walletId, ownerId)) {
+            throw new RuntimeException("Chỉ chủ sở hữu mới có thể chia sẻ ví");
+        }
+
+        User memberUser = userRepository.findByEmail(memberEmail)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email: " + memberEmail));
+
+        if (memberUser.getUserId().equals(ownerId)) {
+            throw new RuntimeException("Không thể chia sẻ ví với chính bạn");
+        }
+
+        if (walletMemberRepository.existsByWallet_WalletIdAndUser_UserId(walletId, memberUser.getUserId())) {
+            throw new RuntimeException("Người dùng này đã là thành viên của ví");
+        }
+
+        WalletMember newMember = new WalletMember(wallet, memberUser, WalletRole.MEMBER);
+        WalletMember savedMember = walletMemberRepository.save(newMember);
+
+        return convertToMemberDTO(savedMember);
+    }
+
+    @Override
+    public List<WalletMemberDTO> getWalletMembers(Long walletId, Long requesterId) {
+        if (!hasAccess(walletId, requesterId)) {
+            throw new RuntimeException("Bạn không có quyền xem thành viên của ví này");
+        }
+
+        return walletMemberRepository.findByWallet_WalletId(walletId)
+                .stream()
+                .map(this::convertToMemberDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void removeMember(Long walletId, Long ownerId, Long memberUserId) {
+        if (!isOwner(walletId, ownerId)) {
+            throw new RuntimeException("Chỉ chủ sở hữu mới có thể xóa thành viên");
+        }
+
+        if (ownerId.equals(memberUserId)) {
+            throw new RuntimeException("Không thể xóa chủ sở hữu khỏi ví");
+        }
+
+        WalletMember member = walletMemberRepository
+                .findByWallet_WalletIdAndUser_UserId(walletId, memberUserId)
+                .orElseThrow(() -> new RuntimeException("Thành viên không tồn tại trong ví này"));
+
+        if (member.getRole() == WalletRole.OWNER) {
+            throw new RuntimeException("Không thể xóa chủ sở hữu");
+        }
+
+        walletMemberRepository.delete(member);
+    }
+
+    // ✅ Cập nhật ví (có kiểm tra giao dịch)
+    @Override
+    @Transactional
+    public Wallet updateWallet(Long walletId, Long userId, UpdateWalletRequest request) {
+        Wallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy ví"));
+
+        if (!wallet.getUser().getUserId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền chỉnh sửa ví này");
+        }
+
+        // Chỉ được sửa số dư nếu chưa có giao dịch
+        if (request.getBalance() != null) {
+            boolean hasTransactions = transactionRepository.existsByWallet_WalletId(walletId);
+            if (hasTransactions) {
+                throw new RuntimeException("Ví đã có giao dịch, không thể chỉnh sửa số dư nữa");
+            }
+            wallet.setBalance(request.getBalance());
+        }
+
+        if (request.getWalletName() != null && !request.getWalletName().isBlank()) {
+            wallet.setWalletName(request.getWalletName());
+        }
+
+        if (request.getDescription() != null) {
+            wallet.setDescription(request.getDescription());
+        }
+
+        if (request.getCurrencyCode() != null) {
+            Object currency = currencyRepository.findByCurrencyCode(request.getCurrencyCode())
+                    .orElseThrow(() -> new RuntimeException("Mã tiền tệ không tồn tại"));
+            wallet.setCurrency(currency);
+            wallet.setCurrencyCode(request.getCurrencyCode());
+        }
+
+        return walletRepository.save(wallet);
+    }
+
+    @Override
+    @Transactional
+    public void leaveWallet(Long walletId, Long userId) {
+        WalletMember member = walletMemberRepository
+                .findByWallet_WalletIdAndUser_UserId(walletId, userId)
+                .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên của ví này"));
+
+        if (member.getRole() == WalletRole.OWNER) {
+            throw new RuntimeException("Chủ sở hữu không thể rời khỏi ví. Vui lòng xóa ví hoặc chuyển quyền sở hữu.");
+        }
+
+        walletMemberRepository.delete(member);
+    }
+
+    @Override
+    public boolean hasAccess(Long walletId, Long userId) {
+        return walletMemberRepository.existsByWallet_WalletIdAndUser_UserId(walletId, userId);
+    }
+
+    @Override
+    public boolean isOwner(Long walletId, Long userId) {
+        return walletMemberRepository.isOwner(walletId, userId);
+    }
+
+    // ============ Helper ============
+
+    private WalletMemberDTO convertToMemberDTO(WalletMember member) {
+        User user = member.getUser();
+        return new WalletMemberDTO(
+                member.getMemberId(),
+                user.getUserId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getAvatar(),
+                member.getRole().toString(),
+                member.getJoinedAt()
+        );
     }
 }
