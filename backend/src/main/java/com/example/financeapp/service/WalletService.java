@@ -2,15 +2,19 @@ package com.example.financeapp.service;
 
 import com.example.financeapp.dto.CreateWalletRequest;
 import com.example.financeapp.dto.SharedWalletDTO;
+import com.example.financeapp.dto.UpdateWalletRequest;
 import com.example.financeapp.dto.WalletMemberDTO;
 import com.example.financeapp.entity.Wallet;
 import jakarta.transaction.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 public interface WalletService {
 
     Wallet createWallet(Long userId, CreateWalletRequest request);
+    Wallet updateWallet(Long walletId, Long userId, Map<String, Object> updates);
+    Wallet updateWallet(Long walletId, Long userId, UpdateWalletRequest request);
 
     List<Wallet> getWalletsByUserId(Long userId);
 

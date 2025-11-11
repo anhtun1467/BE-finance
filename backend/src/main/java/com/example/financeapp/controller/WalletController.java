@@ -1,9 +1,6 @@
 package com.example.financeapp.controller;
 
-import com.example.financeapp.dto.CreateWalletRequest;
-import com.example.financeapp.dto.ShareWalletRequest;
-import com.example.financeapp.dto.SharedWalletDTO;
-import com.example.financeapp.dto.WalletMemberDTO;
+import com.example.financeapp.dto.*;
 import com.example.financeapp.entity.User;
 import com.example.financeapp.entity.Wallet;
 import com.example.financeapp.repository.UserRepository;
@@ -239,6 +236,31 @@ public class WalletController {
 
             return ResponseEntity.ok(res);
 
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
+    }
+    // * Cập nhật thông tin ví (chỉ owner)
+   //  * PUT /wallets/{walletId}/update
+    // */
+    @PutMapping("/{walletId}/update")
+    public ResponseEntity<Map<String, Object>> updateWallet(
+            @PathVariable Long walletId,
+            @Valid @RequestBody UpdateWalletRequest request) {
+        Map<String, Object> res = new HashMap<>();
+        try {
+            Long userId = getCurrentUserId();
+
+            Wallet updatedWallet = walletService.updateWallet(walletId, userId, request);
+
+            res.put("message", "Cập nhật ví thành công");
+            res.put("wallet", updatedWallet);
+            return ResponseEntity.ok(res);
+
+        } catch (RuntimeException e) {
+            res.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(res);
         } catch (Exception e) {
             res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
             return ResponseEntity.status(500).body(res);

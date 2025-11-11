@@ -49,4 +49,7 @@ public class Wallet {
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void setCurrency(Object currency) {
+    }
 }

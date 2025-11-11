@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     List<Transaction> findByUser_UserIdOrderByTransactionDateDesc(Long userId);
+    boolean existsByWallet_WalletId(Long walletId);
 }
