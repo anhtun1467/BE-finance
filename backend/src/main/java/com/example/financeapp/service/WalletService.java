@@ -53,4 +53,30 @@ public interface WalletService {
      * Kiểm tra user có phải owner của wallet không
      */
     boolean isOwner(Long walletId, Long userId);
+
+    // ============ MERGE WALLET METHODS ============
+
+    /**
+     * Lấy danh sách ví có thể gộp (cùng currency, không shared)
+     */
+    List<com.example.financeapp.dto.MergeCandidateDTO> getMergeCandidates(Long userId, Long sourceWalletId);
+
+    /**
+     * Preview kết quả merge trước khi thực hiện
+     */
+    com.example.financeapp.dto.MergeWalletPreviewResponse previewMerge(
+            Long userId,
+            Long sourceWalletId,
+            Long targetWalletId
+    );
+
+    /**
+     * Thực hiện gộp ví
+     */
+    @Transactional
+    com.example.financeapp.dto.MergeWalletResponse mergeWallets(
+            Long userId,
+            Long sourceWalletId,
+            Long targetWalletId
+    );
 }

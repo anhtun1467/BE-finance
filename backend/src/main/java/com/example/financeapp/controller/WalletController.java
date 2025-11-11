@@ -1,9 +1,6 @@
 package com.example.financeapp.controller;
 
-import com.example.financeapp.dto.CreateWalletRequest;
-import com.example.financeapp.dto.ShareWalletRequest;
-import com.example.financeapp.dto.SharedWalletDTO;
-import com.example.financeapp.dto.WalletMemberDTO;
+import com.example.financeapp.dto.*;
 import com.example.financeapp.entity.User;
 import com.example.financeapp.entity.Wallet;
 import com.example.financeapp.repository.UserRepository;
@@ -241,6 +238,132 @@ public class WalletController {
 
         } catch (Exception e) {
             res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
+    }
+
+    // ============ MERGE WALLET ENDPOINTS ============
+
+    /**
+     * Lấy danh sách ví có thể gộp
+     * GET /wallets/{sourceWalletId}/merge-candidates
+     */
+    @GetMapping("/{sourceWalletId}/merge-candidates")
+    public ResponseEntity<Map<String, Object>> getMergeCandidates(@PathVariable Long sourceWalletId) {
+        Map<String, Object> res = new HashMap<>();
+        try {
+            Long userId = getCurrentUserId();
+
+            List<MergeCandidateDTO> candidates = walletService.getMergeCandidates(userId, sourceWalletId);
+
+            // Tách ra eligible và ineligible
+            List<MergeCandidateDTO> eligible = candidates.stream()
+                    .filter(MergeCandidateDTO::isCanMerge)
+                    .collect(java.util.stream.Collectors.toList());
+
+            List<MergeCandidateDTO> ineligible = candidates.stream()
+                    .filter(c -> !c.isCanMerge())
+                    .collect(java.util.stream.Collectors.toList());
+
+            res.put("candidateWallets", eligible);
+            res.put("ineligibleWallets", ineligible);
+            res.put("total", eligible.size());
+            return ResponseEntity.ok(res);
+
+        } catch (RuntimeException e) {
+            res.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(res);
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
+    }
+
+    /**
+     * Preview kết quả merge
+     * GET /wallets/{targetWalletId}/merge-preview?sourceWalletId=X
+     */
+    @GetMapping("/{targetWalletId}/merge-preview")
+    public ResponseEntity<Map<String, Object>> previewMerge(
+            @PathVariable Long targetWalletId,
+            @RequestParam Long sourceWalletId) {
+        Map<String, Object> res = new HashMap<>();
+        try {
+            Long userId = getCurrentUserId();
+
+            MergeWalletPreviewResponse preview = walletService.previewMerge(
+                    userId,
+                    sourceWalletId,
+                    targetWalletId
+            );
+
+            res.put("preview", preview);
+            return ResponseEntity.ok(res);
+
+        } catch (RuntimeException e) {
+            res.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(res);
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
+    }
+
+    /**
+     * Thực hiện gộp ví
+     * POST /wallets/{targetWalletId}/merge
+     */
+    @PostMapping("/{targetWalletId}/merge")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> mergeWallets(
+            @PathVariable Long targetWalletId,
+            @Valid @RequestBody MergeWalletRequest request) {
+        Map<String, Object> res = new HashMap<>();
+        try {
+            Long userId = getCurrentUserId();
+
+            MergeWalletResponse result = walletService.mergeWallets(
+                    userId,
+                    request.getSourceWalletId(),
+                    targetWalletId
+            );
+
+            res.put("success", true);
+            res.put("message", result.getMessage());
+            res.put("result", result);
+            return ResponseEntity.ok(res);
+
+        } catch (RuntimeException e) {
+            res.put("success", false);
+            res.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(res);
+        } catch (Exception e) {
+            res.put("success", false);
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
+    }
+
+    /**
+     * Lấy lịch sử merge của user
+     * GET /wallets/merge-history
+     */
+    @GetMapping("/merge-history")
+    public ResponseEntity<Map<String, Object>> getMergeHistory() {
+        Map<String, Object> res = new HashMap<>();
+        try {
+            Long userId = getCurrentUserId();
+
+            // Note: Cần inject WalletMergeHistoryRepository vào controller
+            // Hoặc tạo method trong WalletService
+            // Tạm thời return empty list
+            res.put("history", new java.util.ArrayList<>());
+            res.put("total", 0);
+            res.put("message", "Feature coming soon");
+            return ResponseEntity.ok(res);
+
+        } catch (Exception e) {
+            res.put("error", e.getMessage());
             return ResponseEntity.status(500).body(res);
         }
     }

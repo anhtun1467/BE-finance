@@ -1,22 +1,16 @@
 package com.example.financeapp.service.impl;
 
-import com.example.financeapp.dto.CreateWalletRequest;
-import com.example.financeapp.dto.SharedWalletDTO;
-import com.example.financeapp.dto.WalletMemberDTO;
-import com.example.financeapp.entity.User;
-import com.example.financeapp.entity.Wallet;
-import com.example.financeapp.entity.WalletMember;
+import com.example.financeapp.dto.*;
+import com.example.financeapp.entity.*;
 import com.example.financeapp.entity.WalletMember.WalletRole;
-import com.example.financeapp.repository.CurrencyRepository;
-import com.example.financeapp.repository.UserRepository;
-import com.example.financeapp.repository.WalletMemberRepository;
-import com.example.financeapp.repository.WalletRepository;
+import com.example.financeapp.repository.*;
 import com.example.financeapp.service.WalletService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,6 +29,12 @@ public class WalletServiceImpl implements WalletService {
 
     @Autowired
     private WalletMemberRepository walletMemberRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
+    private WalletMergeHistoryRepository walletMergeHistoryRepository;
 
     @Override
     @Transactional
@@ -243,6 +243,253 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public boolean isOwner(Long walletId, Long userId) {
         return walletMemberRepository.isOwner(walletId, userId);
+    }
+
+    // ============ MERGE WALLET IMPLEMENTATION ============
+
+    @Override
+    public List<MergeCandidateDTO> getMergeCandidates(Long userId, Long sourceWalletId) {
+        // 1. Lấy thông tin ví nguồn
+        Wallet sourceWallet = walletRepository.findById(sourceWalletId)
+                .orElseThrow(() -> new RuntimeException("Ví nguồn không tồn tại"));
+
+        // 2. Kiểm tra user có phải owner không
+        if (!isOwner(sourceWalletId, userId)) {
+            throw new RuntimeException("Bạn không phải chủ sở hữu ví này");
+        }
+
+        // 3. Lấy tất cả memberships của user
+        List<WalletMember> memberships = walletMemberRepository.findByUser_UserIdAndRole(userId, WalletRole.OWNER);
+
+        List<MergeCandidateDTO> candidates = new ArrayList<>();
+
+        for (WalletMember membership : memberships) {
+            Wallet wallet = membership.getWallet();
+
+            // Bỏ qua chính ví nguồn
+            if (wallet.getWalletId().equals(sourceWalletId)) {
+                continue;
+            }
+
+            // Đếm số members
+            long memberCount = walletMemberRepository.countByWallet_WalletId(wallet.getWalletId());
+
+            // Đếm số transactions
+            int txCount = (int) transactionRepository.countByWallet_WalletId(wallet.getWalletId());
+
+            MergeCandidateDTO candidate = new MergeCandidateDTO(
+                    wallet.getWalletId(),
+                    wallet.getWalletName(),
+                    wallet.getCurrencyCode(),
+                    wallet.getBalance(),
+                    txCount,
+                    wallet.isDefault()
+            );
+
+            // Kiểm tra điều kiện merge
+            if (!wallet.getCurrencyCode().equals(sourceWallet.getCurrencyCode())) {
+                candidate.setCanMerge(false);
+                candidate.setReason("Khác loại tiền tệ (" + wallet.getCurrencyCode() + " ≠ " + sourceWallet.getCurrencyCode() + ")");
+            } else if (memberCount > 1) {
+                candidate.setCanMerge(false);
+                candidate.setReason("Ví đã được chia sẻ với " + (memberCount - 1) + " người khác");
+            }
+
+            candidates.add(candidate);
+        }
+
+        // Sort: ví có thể merge trước, theo balance giảm dần
+        candidates.sort((a, b) -> {
+            if (a.isCanMerge() != b.isCanMerge()) {
+                return a.isCanMerge() ? -1 : 1;
+            }
+            return b.getBalance().compareTo(a.getBalance());
+        });
+
+        return candidates;
+    }
+
+    @Override
+    public MergeWalletPreviewResponse previewMerge(Long userId, Long sourceWalletId, Long targetWalletId) {
+        // 1. Validate cơ bản
+        Wallet sourceWallet = walletRepository.findById(sourceWalletId)
+                .orElseThrow(() -> new RuntimeException("Ví nguồn không tồn tại"));
+
+        Wallet targetWallet = walletRepository.findById(targetWalletId)
+                .orElseThrow(() -> new RuntimeException("Ví đích không tồn tại"));
+
+        // 2. Kiểm tra ownership
+        if (!isOwner(sourceWalletId, userId) || !isOwner(targetWalletId, userId)) {
+            throw new RuntimeException("Bạn không phải chủ sở hữu của cả 2 ví");
+        }
+
+        // 3. Kiểm tra không gộp với chính nó
+        if (sourceWalletId.equals(targetWalletId)) {
+            throw new RuntimeException("Không thể gộp ví với chính nó");
+        }
+
+        // 4. Kiểm tra cùng currency
+        if (!sourceWallet.getCurrencyCode().equals(targetWallet.getCurrencyCode())) {
+            throw new RuntimeException("Chỉ có thể gộp các ví cùng loại tiền tệ");
+        }
+
+        // 5. Kiểm tra không shared
+        long sourceMemberCount = walletMemberRepository.countByWallet_WalletId(sourceWalletId);
+        long targetMemberCount = walletMemberRepository.countByWallet_WalletId(targetWalletId);
+
+        if (sourceMemberCount > 1) {
+            throw new RuntimeException("Không thể gộp ví đã được chia sẻ. Vui lòng xóa tất cả members trước.");
+        }
+
+        if (targetMemberCount > 1) {
+            throw new RuntimeException("Không thể gộp vào ví đã được chia sẻ. Vui lòng chọn ví đích là ví cá nhân.");
+        }
+
+        // 6. Lấy transaction counts
+        int sourceTxCount = (int) transactionRepository.countByWallet_WalletId(sourceWalletId);
+        int targetTxCount = (int) transactionRepository.countByWallet_WalletId(targetWalletId);
+
+        // 7. Tạo preview response
+        MergeWalletPreviewResponse preview = new MergeWalletPreviewResponse();
+
+        // Source info
+        preview.setSourceWalletId(sourceWalletId);
+        preview.setSourceWalletName(sourceWallet.getWalletName());
+        preview.setSourceCurrency(sourceWallet.getCurrencyCode());
+        preview.setSourceBalance(sourceWallet.getBalance());
+        preview.setSourceTransactionCount(sourceTxCount);
+        preview.setSourceIsDefault(sourceWallet.isDefault());
+
+        // Target info
+        preview.setTargetWalletId(targetWalletId);
+        preview.setTargetWalletName(targetWallet.getWalletName());
+        preview.setTargetCurrency(targetWallet.getCurrencyCode());
+        preview.setTargetBalance(targetWallet.getBalance());
+        preview.setTargetTransactionCount(targetTxCount);
+
+        // Final result
+        preview.setFinalWalletName(targetWallet.getWalletName());
+        preview.setFinalCurrency(targetWallet.getCurrencyCode());
+        preview.setFinalBalance(targetWallet.getBalance().add(sourceWallet.getBalance()));
+        preview.setTotalTransactions(sourceTxCount + targetTxCount);
+        preview.setWillTransferDefaultFlag(sourceWallet.isDefault());
+
+        // Warnings
+        preview.addWarning("Ví '" + sourceWallet.getWalletName() + "' sẽ bị xóa vĩnh viễn");
+        if (sourceTxCount > 0) {
+            preview.addWarning(sourceTxCount + " giao dịch sẽ được chuyển sang ví đích");
+        }
+        if (sourceWallet.isDefault()) {
+            preview.addWarning("Cờ 'Ví mặc định' sẽ chuyển sang ví đích");
+        }
+        preview.addWarning("Hành động này không thể hoàn tác");
+
+        preview.setCanProceed(true);
+
+        return preview;
+    }
+
+    @Override
+    @Transactional
+    public MergeWalletResponse mergeWallets(Long userId, Long sourceWalletId, Long targetWalletId) {
+        long startTime = System.currentTimeMillis();
+
+        // ===== VALIDATION (giống preview) =====
+        Wallet sourceWallet = walletRepository.findById(sourceWalletId)
+                .orElseThrow(() -> new RuntimeException("Ví nguồn không tồn tại"));
+
+        Wallet targetWallet = walletRepository.findById(targetWalletId)
+                .orElseThrow(() -> new RuntimeException("Ví đích không tồn tại"));
+
+        if (!isOwner(sourceWalletId, userId) || !isOwner(targetWalletId, userId)) {
+            throw new RuntimeException("Bạn không phải chủ sở hữu của cả 2 ví");
+        }
+
+        if (sourceWalletId.equals(targetWalletId)) {
+            throw new RuntimeException("Không thể gộp ví với chính nó");
+        }
+
+        if (!sourceWallet.getCurrencyCode().equals(targetWallet.getCurrencyCode())) {
+            throw new RuntimeException("Chỉ có thể gộp các ví cùng loại tiền tệ");
+        }
+
+        long sourceMemberCount = walletMemberRepository.countByWallet_WalletId(sourceWalletId);
+        long targetMemberCount = walletMemberRepository.countByWallet_WalletId(targetWalletId);
+
+        if (sourceMemberCount > 1 || targetMemberCount > 1) {
+            throw new RuntimeException("Chỉ có thể gộp các ví cá nhân (không chia sẻ)");
+        }
+
+        // ===== GATHER DATA =====
+        int sourceTxCount = (int) transactionRepository.countByWallet_WalletId(sourceWalletId);
+        int targetTxCount = (int) transactionRepository.countByWallet_WalletId(targetWalletId);
+        BigDecimal oldTargetBalance = targetWallet.getBalance();
+        boolean wasSourceDefault = sourceWallet.isDefault();
+
+        // ===== CALCULATE NEW BALANCE FIRST =====
+        BigDecimal newBalance = targetWallet.getBalance().add(sourceWallet.getBalance());
+
+        // ===== SAVE MERGE HISTORY =====
+        WalletMergeHistory history = new WalletMergeHistory();
+        history.setUserId(userId);
+        history.setSourceWalletId(sourceWalletId);
+        history.setSourceWalletName(sourceWallet.getWalletName());
+        history.setSourceCurrency(sourceWallet.getCurrencyCode());
+        history.setSourceBalance(sourceWallet.getBalance());
+        history.setSourceTransactionCount(sourceTxCount);
+        history.setTargetWalletId(targetWalletId);
+        history.setTargetWalletName(targetWallet.getWalletName());
+        history.setTargetCurrency(targetWallet.getCurrencyCode());
+        history.setTargetBalanceBefore(oldTargetBalance);
+        history.setTargetBalanceAfter(newBalance);  // ✅ SET TRƯỚC KHI SAVE
+        history.setTargetTransactionCountBefore(targetTxCount);
+
+        WalletMergeHistory savedHistory = walletMergeHistoryRepository.save(history);
+
+        // ===== PERFORM MERGE =====
+
+        // 1. Chuyển transactions
+        int movedTx = transactionRepository.updateWalletIdForAllTransactions(sourceWalletId, targetWalletId);
+
+        // 2. Cập nhật balance
+        targetWallet.setBalance(newBalance);
+
+        // 3. Xử lý default flag
+        if (wasSourceDefault) {
+            walletRepository.unsetDefaultWallet(userId, null);
+            targetWallet.setDefault(true);
+        }
+
+        // 4. Save target wallet
+        walletRepository.save(targetWallet);
+
+        // 5. Delete source wallet_members TRƯỚC (tránh FK constraint)
+        List<WalletMember> sourceMembers = walletMemberRepository.findByWallet_WalletId(sourceWalletId);
+        walletMemberRepository.deleteAll(sourceMembers);
+
+        // 6. Delete source wallet
+        walletRepository.delete(sourceWallet);
+
+        // 7. Update merge history duration
+        long duration = System.currentTimeMillis() - startTime;
+        savedHistory.setMergeDurationMs(duration);
+        walletMergeHistoryRepository.save(savedHistory);
+
+        // ===== CREATE RESPONSE =====
+        MergeWalletResponse response = new MergeWalletResponse();
+        response.setSuccess(true);
+        response.setMessage("Gộp ví thành công");
+        response.setTargetWalletId(targetWalletId);
+        response.setTargetWalletName(targetWallet.getWalletName());
+        response.setFinalBalance(newBalance);
+        response.setFinalCurrency(targetWallet.getCurrencyCode());
+        response.setMergedTransactions(movedTx);
+        response.setSourceWalletName(sourceWallet.getWalletName());
+        response.setWasDefaultTransferred(wasSourceDefault);
+        response.setMergeHistoryId(savedHistory.getMergeId());
+        response.setMergedAt(savedHistory.getMergedAt());
+
+        return response;
     }
 
     // ============ HELPER METHODS ============
