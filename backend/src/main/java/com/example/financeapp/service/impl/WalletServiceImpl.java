@@ -3,6 +3,7 @@ package com.example.financeapp.service.impl;
 import com.example.financeapp.dto.*;
 import com.example.financeapp.entity.*;
 import com.example.financeapp.entity.WalletMember.WalletRole;
+import com.example.financeapp.entity.WalletTransfer;
 import com.example.financeapp.repository.*;
 import com.example.financeapp.service.WalletService;
 import com.example.financeapp.service.ExchangeRateService;
@@ -38,13 +39,10 @@ public class WalletServiceImpl implements WalletService {
     private WalletMergeHistoryRepository walletMergeHistoryRepository;
 
     @Autowired
-    private TransactionTypeRepository transactionTypeRepository;
-
-    @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
     private ExchangeRateService exchangeRateService;
+
+    @Autowired
+    private WalletTransferRepository walletTransferRepository;
 
     @Override
     @Transactional
@@ -67,15 +65,7 @@ public class WalletServiceImpl implements WalletService {
         wallet.setUser(user);
         wallet.setWalletName(request.getWalletName().trim());
         wallet.setCurrencyCode(request.getCurrencyCode().toUpperCase());
-
-        // ✅ Mặc định số dư luôn là 0 khi tạo ví mới
-        // User sẽ thêm tiền qua transaction "Thu nhập" hoặc "Chuyển tiền"
-        wallet.setBalance(BigDecimal.ZERO);
-
-        // ✅ Ví mới tạo LUÔN là PERSONAL (ví cá nhân)
-        // Không có lựa chọn loại ví khi tạo
-        wallet.setWalletType("PERSONAL");
-
+        wallet.setBalance(BigDecimal.valueOf(request.getInitialBalance()));
         wallet.setDescription(request.getDescription());
         wallet.setDefault(false);
 
@@ -89,12 +79,6 @@ public class WalletServiceImpl implements WalletService {
         // 5. Tạo WalletMember với role OWNER
         WalletMember ownerMember = new WalletMember(savedWallet, user, WalletRole.OWNER);
         walletMemberRepository.save(ownerMember);
-
-        // Log thông tin
-        System.out.println("[CREATE_WALLET] Created wallet '" + wallet.getWalletName() +
-                "' | Type: " + wallet.getWalletType() +
-                " | Balance: " + wallet.getBalance() +
-                " | Owner: " + user.getFullName());
 
         return savedWallet;
     }
@@ -127,46 +111,6 @@ public class WalletServiceImpl implements WalletService {
     // ============ SHARED WALLET IMPLEMENTATION ============
 
     @Override
-    @Transactional
-    public Wallet convertToGroupWallet(Long userId, Long walletId) {
-        // 1. Kiểm tra wallet tồn tại
-        Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new RuntimeException("Ví không tồn tại"));
-
-        // 2. Kiểm tra user là OWNER
-        if (!isOwner(walletId, userId)) {
-            throw new RuntimeException("Chỉ chủ sở hữu mới có thể chuyển đổi ví");
-        }
-
-        // 3. ✅ KHÔNG cho phép chuyển đổi ví mặc định
-        if (wallet.isDefault()) {
-            throw new RuntimeException("Không thể chuyển đổi ví mặc định thành ví nhóm. Vui lòng bỏ cờ mặc định trước.");
-        }
-
-        // 4. Kiểm tra ví hiện tại phải là PERSONAL
-        if ("GROUP".equals(wallet.getWalletType())) {
-            throw new RuntimeException("Ví này đã là ví nhóm rồi");
-        }
-
-        // 5. ✅ Validate: Chỉ convert ví cá nhân (1 member = chỉ owner)
-        long memberCount = walletMemberRepository.countByWallet_WalletId(walletId);
-        if (memberCount != 1) {
-            throw new RuntimeException("Chỉ có thể chuyển đổi ví cá nhân. Ví này có " + memberCount + " thành viên (đã được share).");
-        }
-
-        System.out.println("[CONVERT] Converting wallet '" + wallet.getWalletName() +
-                "' from PERSONAL → GROUP (only owner)");
-
-        // 6. Chuyển đổi sang GROUP
-        wallet.setWalletType("GROUP");
-        Wallet savedWallet = walletRepository.save(wallet);
-
-        System.out.println("[CONVERT] ✅ Success! Wallet is now GROUP type (no sharing allowed)");
-
-        return savedWallet;
-    }
-
-    @Override
     public List<SharedWalletDTO> getAllAccessibleWallets(Long userId) {
         // Lấy tất cả wallet memberships của user
         List<WalletMember> memberships = walletMemberRepository.findByUser_UserId(userId);
@@ -187,7 +131,6 @@ public class WalletServiceImpl implements WalletService {
             SharedWalletDTO dto = new SharedWalletDTO();
             dto.setWalletId(wallet.getWalletId());
             dto.setWalletName(wallet.getWalletName());
-            dto.setWalletType(wallet.getWalletType()); // ✨ Thêm walletType
             dto.setCurrencyCode(wallet.getCurrencyCode());
             dto.setBalance(wallet.getBalance());
             dto.setDescription(wallet.getDescription());
@@ -220,33 +163,25 @@ public class WalletServiceImpl implements WalletService {
             throw new RuntimeException("Chỉ chủ sở hữu mới có thể chia sẻ ví");
         }
 
-        // 3. ✅ VÍ NHÓM KHÔNG ĐƯỢC SHARE
-        // Logic: Chỉ convert Cá nhân → Nhóm, KHÔNG có share ví nhóm
-        if ("GROUP".equals(wallet.getWalletType())) {
-            throw new RuntimeException(
-                    "Không thể chia sẻ ví nhóm. Ví nhóm chỉ có chủ sở hữu sử dụng."
-            );
-        }
-
-        // 4. Tìm user được chia sẻ qua email
+        // 3. Tìm user được chia sẻ qua email
         User memberUser = userRepository.findByEmail(memberEmail)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email: " + memberEmail));
 
-        // 5. Kiểm tra không thể share với chính mình
+        // 4. Kiểm tra không thể share với chính mình
         if (memberUser.getUserId().equals(ownerId)) {
             throw new RuntimeException("Không thể chia sẻ ví với chính bạn");
         }
 
-        // 6. Kiểm tra user đã là member chưa
+        // 5. Kiểm tra user đã là member chưa
         if (walletMemberRepository.existsByWallet_WalletIdAndUser_UserId(walletId, memberUser.getUserId())) {
             throw new RuntimeException("Người dùng này đã là thành viên của ví");
         }
 
-        // 7. Tạo WalletMember mới với role MEMBER
+        // 6. Tạo WalletMember mới với role MEMBER
         WalletMember newMember = new WalletMember(wallet, memberUser, WalletRole.MEMBER);
         WalletMember savedMember = walletMemberRepository.save(newMember);
 
-        // 8. Tạo DTO để trả về
+        // 7. Tạo DTO để trả về
         return convertToMemberDTO(savedMember);
     }
 
@@ -407,11 +342,11 @@ public class WalletServiceImpl implements WalletService {
         targetCurrency = targetCurrency.toUpperCase();
 
         // Kiểm tra targetCurrency phải là 1 trong 2 currency của 2 ví
-        if (!targetCurrency.equals(sourceWallet.getCurrencyCode()) &&
-                !targetCurrency.equals(targetWallet.getCurrencyCode())) {
+        if (!targetCurrency.equals(sourceWallet.getCurrencyCode()) && 
+            !targetCurrency.equals(targetWallet.getCurrencyCode())) {
             throw new RuntimeException(
-                    "Loại tiền đích phải là " + sourceWallet.getCurrencyCode() +
-                            " hoặc " + targetWallet.getCurrencyCode()
+                "Loại tiền đích phải là " + sourceWallet.getCurrencyCode() + 
+                " hoặc " + targetWallet.getCurrencyCode()
             );
         }
 
@@ -440,15 +375,15 @@ public class WalletServiceImpl implements WalletService {
         if (needsConversion) {
             // Lấy tỷ giá
             exchangeRate = exchangeRateService.getExchangeRate(
-                    sourceWallet.getCurrencyCode(),
-                    targetCurrency
+                sourceWallet.getCurrencyCode(), 
+                targetCurrency
             );
-
+            
             // Chuyển đổi balance của ví nguồn
             sourceBalanceInTargetCurrency = exchangeRateService.convertAmount(
-                    sourceWallet.getBalance(),
-                    sourceWallet.getCurrencyCode(),
-                    targetCurrency
+                sourceWallet.getBalance(),
+                sourceWallet.getCurrencyCode(),
+                targetCurrency
             );
         } else {
             sourceBalanceInTargetCurrency = sourceWallet.getBalance();
@@ -458,9 +393,9 @@ public class WalletServiceImpl implements WalletService {
         BigDecimal targetBalanceInTargetCurrency;
         if (!targetWallet.getCurrencyCode().equals(targetCurrency)) {
             targetBalanceInTargetCurrency = exchangeRateService.convertAmount(
-                    targetWallet.getBalance(),
-                    targetWallet.getCurrencyCode(),
-                    targetCurrency
+                targetWallet.getBalance(),
+                targetWallet.getCurrencyCode(),
+                targetCurrency
             );
         } else {
             targetBalanceInTargetCurrency = targetWallet.getBalance();
@@ -495,19 +430,19 @@ public class WalletServiceImpl implements WalletService {
 
         // Warnings
         preview.addWarning("Ví '" + sourceWallet.getWalletName() + "' sẽ bị xóa vĩnh viễn");
-
+        
         if (needsConversion && sourceTxCount > 0) {
             preview.addWarning(
-                    sourceTxCount + " giao dịch từ Ví " + sourceWallet.getCurrencyCode() +
-                            " sẽ được chuyển đổi sang " + targetCurrency +
-                            " theo tỷ giá: 1 " + sourceWallet.getCurrencyCode() + " = " + exchangeRate + " " + targetCurrency
+                sourceTxCount + " giao dịch từ Ví " + sourceWallet.getCurrencyCode() + 
+                " sẽ được chuyển đổi sang " + targetCurrency + 
+                " theo tỷ giá: 1 " + sourceWallet.getCurrencyCode() + " = " + exchangeRate + " " + targetCurrency
             );
             preview.addWarning("Bạn vẫn có thể xem số tiền gốc (" + sourceWallet.getCurrencyCode() + ") của mỗi giao dịch");
             preview.addWarning("Tỷ giá có thể thay đổi. Tỷ giá hiển thị chỉ mang tính tham khảo");
         } else if (sourceTxCount > 0) {
             preview.addWarning(sourceTxCount + " giao dịch sẽ được chuyển sang ví đích");
         }
-
+        
         if (sourceWallet.isDefault()) {
             preview.addWarning("Cờ 'Ví mặc định' sẽ chuyển sang ví đích");
         }
@@ -546,11 +481,11 @@ public class WalletServiceImpl implements WalletService {
         }
         targetCurrency = targetCurrency.toUpperCase();
 
-        if (!targetCurrency.equals(sourceWallet.getCurrencyCode()) &&
-                !targetCurrency.equals(targetWallet.getCurrencyCode())) {
+        if (!targetCurrency.equals(sourceWallet.getCurrencyCode()) && 
+            !targetCurrency.equals(targetWallet.getCurrencyCode())) {
             throw new RuntimeException(
-                    "Loại tiền đích phải là " + sourceWallet.getCurrencyCode() +
-                            " hoặc " + targetWallet.getCurrencyCode()
+                "Loại tiền đích phải là " + sourceWallet.getCurrencyCode() + 
+                " hoặc " + targetWallet.getCurrencyCode()
             );
         }
 
@@ -577,13 +512,13 @@ public class WalletServiceImpl implements WalletService {
         BigDecimal sourceBalanceInTargetCurrency;
         if (needsSourceConversion) {
             exchangeRateSourceToTarget = exchangeRateService.getExchangeRate(
-                    sourceWallet.getCurrencyCode(),
-                    targetCurrency
+                sourceWallet.getCurrencyCode(),
+                targetCurrency
             );
             sourceBalanceInTargetCurrency = exchangeRateService.convertAmount(
-                    sourceWallet.getBalance(),
-                    sourceWallet.getCurrencyCode(),
-                    targetCurrency
+                sourceWallet.getBalance(),
+                sourceWallet.getCurrencyCode(),
+                targetCurrency
             );
         } else {
             sourceBalanceInTargetCurrency = sourceWallet.getBalance();
@@ -593,13 +528,13 @@ public class WalletServiceImpl implements WalletService {
         BigDecimal targetBalanceInTargetCurrency;
         if (needsTargetConversion) {
             exchangeRateTargetToTarget = exchangeRateService.getExchangeRate(
-                    targetWallet.getCurrencyCode(),
-                    targetCurrency
+                targetWallet.getCurrencyCode(),
+                targetCurrency
             );
             targetBalanceInTargetCurrency = exchangeRateService.convertAmount(
-                    targetWallet.getBalance(),
-                    targetWallet.getCurrencyCode(),
-                    targetCurrency
+                targetWallet.getBalance(),
+                targetWallet.getCurrencyCode(),
+                targetCurrency
             );
         } else {
             targetBalanceInTargetCurrency = targetWallet.getBalance();
@@ -634,7 +569,7 @@ public class WalletServiceImpl implements WalletService {
         for (Transaction tx : sourceTransactions) {
             // Chuyển wallet
             tx.setWallet(targetWallet);
-
+            
             // Nếu cần convert currency
             if (needsSourceConversion) {
                 // Lưu thông tin gốc
@@ -642,16 +577,16 @@ public class WalletServiceImpl implements WalletService {
                 tx.setOriginalCurrency(sourceWallet.getCurrencyCode());
                 tx.setExchangeRate(exchangeRateSourceToTarget);
                 tx.setMergeDate(mergeTime);
-
+                
                 // Convert amount
                 BigDecimal convertedAmount = exchangeRateService.convertAmount(
-                        tx.getAmount(),
-                        sourceWallet.getCurrencyCode(),
-                        targetCurrency
+                    tx.getAmount(),
+                    sourceWallet.getCurrencyCode(),
+                    targetCurrency
                 );
                 tx.setAmount(convertedAmount);
             }
-
+            
             transactionRepository.save(tx);
             movedTx++;
         }
@@ -684,16 +619,16 @@ public class WalletServiceImpl implements WalletService {
         // ===== CREATE RESPONSE =====
         MergeWalletResponse response = new MergeWalletResponse();
         response.setSuccess(true);
-
+        
         if (needsSourceConversion) {
             response.setMessage(
-                    "Gộp ví thành công. Đã chuyển đổi " + movedTx + " giao dịch từ " +
-                            sourceWallet.getCurrencyCode() + " sang " + targetCurrency
+                "Gộp ví thành công. Đã chuyển đổi " + movedTx + " giao dịch từ " + 
+                sourceWallet.getCurrencyCode() + " sang " + targetCurrency
             );
         } else {
             response.setMessage("Gộp ví thành công");
         }
-
+        
         response.setTargetWalletId(targetWalletId);
         response.setTargetWalletName(targetWallet.getWalletName());
         response.setFinalBalance(newBalance);
@@ -732,17 +667,17 @@ public class WalletServiceImpl implements WalletService {
 
         // 4. Kiểm tra tên ví trùng với ví khác của user (ngoại trừ ví hiện tại)
         boolean nameExists = walletRepository.existsByWalletNameAndUser_UserId(
-                request.getWalletName().trim(),
+                request.getWalletName().trim(), 
                 userId
         );
-
+        
         if (nameExists) {
             // Kiểm tra xem có phải đang đổi thành tên cũ không
             Wallet existingWallet = walletRepository.findByWalletNameAndUser_UserId(
-                    request.getWalletName().trim(),
+                    request.getWalletName().trim(), 
                     userId
             );
-
+            
             if (existingWallet != null && !existingWallet.getWalletId().equals(walletId)) {
                 throw new RuntimeException("Bạn đã có ví tên \"" + request.getWalletName().trim() + "\"");
             }
@@ -752,27 +687,27 @@ public class WalletServiceImpl implements WalletService {
         if (request.getBalance() != null) {
             // Đếm số transactions trong ví
             long transactionCount = transactionRepository.countByWallet_WalletId(walletId);
-
+            
             if (transactionCount > 0) {
                 // Ví đã có giao dịch → KHÔNG cho phép sửa balance
                 throw new RuntimeException(
-                        "Không thể chỉnh sửa số dư khi ví đã có giao dịch. " +
-                                "Ví này có " + transactionCount + " giao dịch. " +
-                                "Số dư chỉ có thể thay đổi thông qua giao dịch hoặc bạn có thể xóa ví."
+                    "Không thể chỉnh sửa số dư khi ví đã có giao dịch. " +
+                    "Ví này có " + transactionCount + " giao dịch. " +
+                    "Số dư chỉ có thể thay đổi thông qua giao dịch hoặc bạn có thể xóa ví."
                 );
             }
-
+            
             // Ví chưa có giao dịch → CHO PHÉP sửa balance
             if (request.getBalance().compareTo(BigDecimal.ZERO) < 0) {
                 throw new RuntimeException("Số dư không được âm");
             }
-
+            
             wallet.setBalance(request.getBalance());
         }
 
         // 6. Cập nhật thông tin khác
         wallet.setWalletName(request.getWalletName().trim());
-
+        
         // Description có thể null
         if (request.getDescription() != null) {
             wallet.setDescription(request.getDescription().trim());
@@ -808,26 +743,39 @@ public class WalletServiceImpl implements WalletService {
         // Đếm số members (bao gồm owner)
         int memberCount = (int) walletMemberRepository.countByWallet_WalletId(walletId);
 
-        // 4. ✅ KHÔNG tự động set ví khác làm default khi xóa ví mặc định
-        // User phải tự chọn ví mặc định mới
+        // 4. Xử lý ví mặc định: nếu xóa ví default và user còn ví khác → đặt ví khác làm default
         Long newDefaultWalletId = null;
         String newDefaultWalletName = null;
 
-        // Nếu xóa ví default → Chỉ bỏ cờ default, KHÔNG set ví khác
         if (wasDefault) {
-            System.out.println("[DELETE_WALLET] Đang xóa ví mặc định. KHÔNG tự động set ví khác làm default.");
-            // Không làm gì thêm - user sẽ không có ví mặc định
+            // Tìm ví khác của user (không phải ví đang xóa)
+            List<Wallet> otherWallets = walletRepository.findByUser_UserId(userId).stream()
+                    .filter(w -> !w.getWalletId().equals(walletId))
+                    .collect(Collectors.toList());
+
+            if (!otherWallets.isEmpty()) {
+                // Đặt ví đầu tiên trong list làm default
+                Wallet newDefaultWallet = otherWallets.get(0);
+                newDefaultWallet.setDefault(true);
+                walletRepository.save(newDefaultWallet);
+
+                newDefaultWalletId = newDefaultWallet.getWalletId();
+                newDefaultWalletName = newDefaultWallet.getWalletName();
+            }
         }
 
         // 5. Xóa wallet_members trước (tránh FK constraint)
         List<WalletMember> members = walletMemberRepository.findByWallet_WalletId(walletId);
         walletMemberRepository.deleteAll(members);
 
-        // 6. Xóa tất cả transactions (hoặc có thể để CASCADE xử lý)
+        // 6. ✅ Xóa tất cả wallet_transfers liên quan (từ ví này hoặc đến ví này)
+        walletTransferRepository.deleteByFromWallet_WalletIdOrToWallet_WalletId(walletId, walletId);
+
+        // 7. Xóa tất cả transactions (hoặc có thể để CASCADE xử lý)
         // Note: Nếu đã có ON DELETE CASCADE trong DB thì không cần dòng này
         // transactionRepository.deleteByWallet_WalletId(walletId);
 
-        // 7. Xóa wallet
+        // 8. Xóa wallet
         walletRepository.delete(wallet);
 
         // 8. Tạo response
@@ -851,7 +799,7 @@ public class WalletServiceImpl implements WalletService {
     @Transactional
     public TransferMoneyResponse transferMoney(Long userId, TransferMoneyRequest request) {
         // ===== VALIDATION =====
-
+        
         // 1. Validate input
         if (request.getFromWalletId() == null || request.getToWalletId() == null) {
             throw new RuntimeException("Vui lòng chọn ví nguồn và ví đích");
@@ -867,8 +815,6 @@ public class WalletServiceImpl implements WalletService {
         }
 
         // 3. ✅ Lấy thông tin 2 ví với PESSIMISTIC LOCK (tránh race condition)
-        // Khi có 2 requests đồng thời chuyển từ cùng ví, request sau phải đợi request trước
-        // Lock cả 2 ví để đảm bảo balance không bị thay đổi trong quá trình transfer
         Wallet fromWallet = walletRepository.findByIdWithLock(request.getFromWalletId())
                 .orElseThrow(() -> new RuntimeException("Ví nguồn không tồn tại"));
 
@@ -887,17 +833,17 @@ public class WalletServiceImpl implements WalletService {
         // 5. Kiểm tra cùng loại tiền tệ
         if (!fromWallet.getCurrencyCode().equals(toWallet.getCurrencyCode())) {
             throw new RuntimeException(
-                    "Chỉ có thể chuyển tiền giữa các ví cùng loại tiền tệ. " +
-                            "Ví nguồn: " + fromWallet.getCurrencyCode() + ", Ví đích: " + toWallet.getCurrencyCode()
+                "Chỉ có thể chuyển tiền giữa các ví cùng loại tiền tệ. " +
+                "Ví nguồn: " + fromWallet.getCurrencyCode() + ", Ví đích: " + toWallet.getCurrencyCode()
             );
         }
 
         // 6. Kiểm tra số dư ví nguồn
         if (fromWallet.getBalance().compareTo(request.getAmount()) < 0) {
             throw new RuntimeException(
-                    "Số dư ví nguồn không đủ. Số dư hiện tại: " +
-                            fromWallet.getBalance() + " " + fromWallet.getCurrencyCode() +
-                            ", Số tiền chuyển: " + request.getAmount() + " " + fromWallet.getCurrencyCode()
+                "Số dư ví nguồn không đủ. Số dư hiện tại: " + 
+                fromWallet.getBalance() + " " + fromWallet.getCurrencyCode() +
+                ", Số tiền chuyển: " + request.getAmount() + " " + fromWallet.getCurrencyCode()
             );
         }
 
@@ -905,82 +851,54 @@ public class WalletServiceImpl implements WalletService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại"));
 
-        // 8. Lấy transaction types
-        TransactionType expenseType = transactionTypeRepository.findByTypeName("Chi tiêu")
-                .orElseThrow(() -> new RuntimeException("Transaction type 'Chi tiêu' không tồn tại"));
-
-        TransactionType incomeType = transactionTypeRepository.findByTypeName("Thu nhập")
-                .orElseThrow(() -> new RuntimeException("Transaction type 'Thu nhập' không tồn tại"));
-
-        // 9. Lấy category
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category không tồn tại"));
-
         // ===== SAVE BALANCES BEFORE =====
         BigDecimal fromBalanceBefore = fromWallet.getBalance();
         BigDecimal toBalanceBefore = toWallet.getBalance();
 
         // ===== KIỂM TRA VÍ NHÓM (SHARED WALLET) =====
-        // Đếm số members của cả 2 ví để xác định có phải ví nhóm không
         long fromWalletMemberCount = walletMemberRepository.countByWallet_WalletId(request.getFromWalletId());
         long toWalletMemberCount = walletMemberRepository.countByWallet_WalletId(request.getToWalletId());
-
+        
         boolean fromWalletIsShared = fromWalletMemberCount > 1;
         boolean toWalletIsShared = toWalletMemberCount > 1;
-
-        // Log thông tin để debug (có thể xóa sau)
-        System.out.println("[TRANSFER] From Wallet: " + fromWallet.getWalletName() +
-                " (Members: " + fromWalletMemberCount +
-                ", IsShared: " + fromWalletIsShared + ")");
-        System.out.println("[TRANSFER] To Wallet: " + toWallet.getWalletName() +
-                " (Members: " + toWalletMemberCount +
-                ", IsShared: " + toWalletIsShared + ")");
 
         // ===== PERFORM TRANSFER =====
         LocalDateTime transferTime = LocalDateTime.now();
 
-        // ✅ FIX: UPDATE BALANCE TRƯỚC, SAU ĐÓ MỚI SAVE TRANSACTION
-        // Điều này đảm bảo transaction luôn phản ánh đúng balance tại thời điểm đó
-
-        // 1. ✅ Cập nhật balance ví nguồn TRƯỚC
+        // 1. Cập nhật balance ví nguồn
         fromWallet.setBalance(fromWallet.getBalance().subtract(request.getAmount()));
         walletRepository.save(fromWallet);
 
-        // 2. Tạo và save transaction CHI TIÊU (khi balance đã đúng)
-        Transaction expenseTransaction = new Transaction();
-        expenseTransaction.setUser(user);
-        expenseTransaction.setWallet(fromWallet);
-        expenseTransaction.setTransactionType(expenseType);
-        expenseTransaction.setCategory(category);
-        expenseTransaction.setAmount(request.getAmount());
-        expenseTransaction.setTransactionDate(transferTime);
-        expenseTransaction.setNote(
-                (request.getNote() != null ? request.getNote() + " - " : "") +
-                        "Chuyển đến: " + toWallet.getWalletName()
-        );
-        Transaction savedExpense = transactionRepository.save(expenseTransaction);
-
-        // 3. ✅ Cập nhật balance ví đích TRƯỚC
+        // 2. Cập nhật balance ví đích
         toWallet.setBalance(toWallet.getBalance().add(request.getAmount()));
         walletRepository.save(toWallet);
 
-        // 4. Tạo và save transaction THU NHẬP (khi balance đã đúng)
-        Transaction incomeTransaction = new Transaction();
-        incomeTransaction.setUser(user);
-        incomeTransaction.setWallet(toWallet);
-        incomeTransaction.setTransactionType(incomeType);
-        incomeTransaction.setCategory(category);
-        incomeTransaction.setAmount(request.getAmount());
-        incomeTransaction.setTransactionDate(transferTime);
-        incomeTransaction.setNote(
-                (request.getNote() != null ? request.getNote() + " - " : "") +
-                        "Nhận từ: " + fromWallet.getWalletName()
-        );
-        Transaction savedIncome = transactionRepository.save(incomeTransaction);
+        // 3. ✅ TẠO BẢN GHI WALLET TRANSFER (không cần category_id)
+        WalletTransfer transfer = new WalletTransfer();
+        transfer.setFromWallet(fromWallet);
+        transfer.setToWallet(toWallet);
+        transfer.setAmount(request.getAmount());
+        transfer.setCurrencyCode(fromWallet.getCurrencyCode());
+        transfer.setUser(user);
+        transfer.setNote(request.getNote());
+        transfer.setTransferDate(transferTime);
+        transfer.setStatus(WalletTransfer.TransferStatus.COMPLETED);
+        
+        // Lưu balance trước và sau
+        transfer.setFromBalanceBefore(fromBalanceBefore);
+        transfer.setFromBalanceAfter(fromWallet.getBalance());
+        transfer.setToBalanceBefore(toBalanceBefore);
+        transfer.setToBalanceAfter(toWallet.getBalance());
+        
+        WalletTransfer savedTransfer = walletTransferRepository.save(transfer);
 
         // ===== CREATE RESPONSE =====
         TransferMoneyResponse response = new TransferMoneyResponse();
-
+        
+        // Transfer info
+        response.setTransferId(savedTransfer.getTransferId());
+        response.setStatus(savedTransfer.getStatus().toString());
+        
         // General info
         response.setAmount(request.getAmount());
         response.setCurrencyCode(fromWallet.getCurrencyCode());
@@ -992,20 +910,14 @@ public class WalletServiceImpl implements WalletService {
         response.setFromWalletName(fromWallet.getWalletName());
         response.setFromWalletBalanceBefore(fromBalanceBefore);
         response.setFromWalletBalanceAfter(fromWallet.getBalance());
-        response.setExpenseTransactionId(savedExpense.getTransactionId());
 
         // To wallet info
         response.setToWalletId(toWallet.getWalletId());
         response.setToWalletName(toWallet.getWalletName());
         response.setToWalletBalanceBefore(toBalanceBefore);
         response.setToWalletBalanceAfter(toWallet.getBalance());
-        response.setIncomeTransactionId(savedIncome.getTransactionId());
 
-        // ===== THÔNG TIN BỔ SUNG (theo yêu cầu) =====
-        // 1. Đặt ví mặc định để xem chi tiết là VÍ NGUỒN (fromWallet)
-        response.setDefaultViewWalletId(fromWallet.getWalletId());
-
-        // 2. Thông tin về ví nhóm
+        // Thông tin về ví nhóm
         response.setFromWalletIsShared(fromWalletIsShared);
         response.setFromWalletMemberCount((int) fromWalletMemberCount);
         response.setToWalletIsShared(toWalletIsShared);

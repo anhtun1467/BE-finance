@@ -9,28 +9,29 @@ import java.time.LocalDateTime;
  */
 public class TransferMoneyResponse {
 
+    // === TRANSFER INFO ===
+    private Long transferId; // ID của bản ghi chuyển tiền
+    
     // === GENERAL INFO ===
     private BigDecimal amount;
     private String currencyCode;
     private LocalDateTime transferredAt;
     private String note;
+    private String status; // COMPLETED, PENDING, CANCELLED
 
     // === FROM WALLET (SOURCE) INFO ===
     private Long fromWalletId;
     private String fromWalletName;
     private BigDecimal fromWalletBalanceBefore;
     private BigDecimal fromWalletBalanceAfter;
-    private Long expenseTransactionId; // ID của transaction chi tiêu
 
     // === TO WALLET (DESTINATION) INFO ===
     private Long toWalletId;
     private String toWalletName;
     private BigDecimal toWalletBalanceBefore;
     private BigDecimal toWalletBalanceAfter;
-    private Long incomeTransactionId; // ID của transaction thu nhập
 
     // === ADDITIONAL INFO ===
-    private Long defaultViewWalletId; // ID của ví mặc định để xem chi tiết (ví nguồn)
     private Boolean toWalletIsShared; // Ví đích có phải là ví nhóm không
     private Integer toWalletMemberCount; // Số thành viên của ví đích
     private Boolean fromWalletIsShared; // Ví nguồn có phải là ví nhóm không
@@ -41,6 +42,14 @@ public class TransferMoneyResponse {
     }
 
     // Getters & Setters
+    public Long getTransferId() {
+        return transferId;
+    }
+
+    public void setTransferId(Long transferId) {
+        this.transferId = transferId;
+    }
+
     public BigDecimal getAmount() {
         return amount;
     }
@@ -71,6 +80,14 @@ public class TransferMoneyResponse {
 
     public void setNote(String note) {
         this.note = note;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public Long getFromWalletId() {
@@ -105,14 +122,6 @@ public class TransferMoneyResponse {
         this.fromWalletBalanceAfter = fromWalletBalanceAfter;
     }
 
-    public Long getExpenseTransactionId() {
-        return expenseTransactionId;
-    }
-
-    public void setExpenseTransactionId(Long expenseTransactionId) {
-        this.expenseTransactionId = expenseTransactionId;
-    }
-
     public Long getToWalletId() {
         return toWalletId;
     }
@@ -143,22 +152,6 @@ public class TransferMoneyResponse {
 
     public void setToWalletBalanceAfter(BigDecimal toWalletBalanceAfter) {
         this.toWalletBalanceAfter = toWalletBalanceAfter;
-    }
-
-    public Long getIncomeTransactionId() {
-        return incomeTransactionId;
-    }
-
-    public void setIncomeTransactionId(Long incomeTransactionId) {
-        this.incomeTransactionId = incomeTransactionId;
-    }
-
-    public Long getDefaultViewWalletId() {
-        return defaultViewWalletId;
-    }
-
-    public void setDefaultViewWalletId(Long defaultViewWalletId) {
-        this.defaultViewWalletId = defaultViewWalletId;
     }
 
     public Boolean getToWalletIsShared() {
