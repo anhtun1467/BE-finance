@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public class SharedWalletDTO {
     private Long walletId;
     private String walletName;
+    private String walletType; // ✨ NEW: "PERSONAL" hoặc "GROUP"
     private String currencyCode;
     private BigDecimal balance;
     private String description;
@@ -39,6 +40,14 @@ public class SharedWalletDTO {
 
     public void setWalletName(String walletName) {
         this.walletName = walletName;
+    }
+
+    public String getWalletType() {
+        return walletType;
+    }
+
+    public void setWalletType(String walletType) {
+        this.walletType = walletType;
     }
 
     public String getCurrencyCode() {

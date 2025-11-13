@@ -19,6 +19,15 @@ public interface WalletService {
     // ============ SHARED WALLET METHODS ============
     @Transactional
     void setDefaultWallet(Long userId, Long walletId);
+
+    /**
+     * Chuyển đổi ví cá nhân thành ví nhóm
+     * CHỈ cho phép chuyển đổi ví PERSONAL → GROUP
+     * Sau khi chuyển đổi, không cho phép share thêm members
+     */
+    @Transactional
+    Wallet convertToGroupWallet(Long userId, Long walletId);
+
     /**
      * Lấy tất cả wallets mà user có quyền truy cập (bao gồm owned và shared)
      */
@@ -108,7 +117,7 @@ public interface WalletService {
      */
     @Transactional
     com.example.financeapp.dto.TransferMoneyResponse transferMoney(
-            Long userId, 
+            Long userId,
             com.example.financeapp.dto.TransferMoneyRequest request
     );
 }

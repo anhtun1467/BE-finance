@@ -116,8 +116,40 @@ public class WalletController {
     // ============ SHARED WALLET ENDPOINTS ============
 
     /**
+     * Chuyển đổi ví cá nhân thành ví nhóm
+     * POST /wallets/{walletId}/convert-to-group
+     */
+    @PostMapping("/{walletId}/convert-to-group")
+    public ResponseEntity<Map<String, Object>> convertToGroupWallet(@PathVariable Long walletId) {
+        Map<String, Object> res = new HashMap<>();
+        try {
+            Long userId = getCurrentUserId();
+
+            Wallet wallet = walletService.convertToGroupWallet(userId, walletId);
+
+            res.put("message", "Chuyển đổi ví thành công. Ví của bạn bây giờ là ví nhóm.");
+            res.put("wallet", Map.of(
+                    "walletId", wallet.getWalletId(),
+                    "walletName", wallet.getWalletName(),
+                    "walletType", wallet.getWalletType(),
+                    "balance", wallet.getBalance(),
+                    "currencyCode", wallet.getCurrencyCode()
+            ));
+            return ResponseEntity.ok(res);
+
+        } catch (RuntimeException e) {
+            res.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(res);
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
+    }
+
+    /**
      * Chia sẻ ví với người dùng khác qua email
      * POST /wallets/{walletId}/share
+     * ⚠️ CHỈ ÁP DỤNG cho ví CÁ NHÂN (PERSONAL)
      */
     @PostMapping("/{walletId}/share")
     public ResponseEntity<Map<String, Object>> shareWallet(
@@ -439,10 +471,10 @@ public class WalletController {
 
             // Lấy ví nguồn để biết currency
             Wallet sourceWallet = walletService.getWalletDetails(userId, walletId);
-            
+
             // Lấy tất cả ví có quyền truy cập
             List<SharedWalletDTO> allWallets = walletService.getAllAccessibleWallets(userId);
-            
+
             // Filter: Bỏ ví nguồn và chỉ lấy ví cùng currency
             List<SharedWalletDTO> targets = allWallets.stream()
                     .filter(w -> !w.getWalletId().equals(walletId)) // Không phải ví nguồn
@@ -450,10 +482,10 @@ public class WalletController {
                     .collect(java.util.stream.Collectors.toList());
 
             res.put("sourceWallet", Map.of(
-                "walletId", sourceWallet.getWalletId(),
-                "walletName", sourceWallet.getWalletName(),
-                "currencyCode", sourceWallet.getCurrencyCode(),
-                "balance", sourceWallet.getBalance()
+                    "walletId", sourceWallet.getWalletId(),
+                    "walletName", sourceWallet.getWalletName(),
+                    "currencyCode", sourceWallet.getCurrencyCode(),
+                    "balance", sourceWallet.getBalance()
             ));
             res.put("targetWallets", targets);
             res.put("total", targets.size());

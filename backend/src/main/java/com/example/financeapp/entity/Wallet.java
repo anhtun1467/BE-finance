@@ -39,6 +39,10 @@ public class Wallet {
     @Column(name = "is_default")
     private boolean isDefault = false;
 
+    // ✨ NEW: Phân loại ví (Cá nhân / Nhóm)
+    @Column(name = "wallet_type", length = 20)
+    private String walletType = "PERSONAL"; // "PERSONAL" hoặc "GROUP"
+
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
@@ -116,5 +120,13 @@ public class Wallet {
 
     public void setDefault(boolean isDefault) {
         this.isDefault = isDefault;
+    }
+
+    public String getWalletType() {
+        return walletType;
+    }
+
+    public void setWalletType(String walletType) {
+        this.walletType = walletType;
     }
 }
