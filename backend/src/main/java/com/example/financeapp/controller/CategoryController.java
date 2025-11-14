@@ -25,4 +25,16 @@ public class CategoryController {
                 request.getTransactionTypeId()
         );
     }
+    // Cập nhật danh mục
+    @PutMapping("/{id}")
+    public Category updateCategory(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateCategoryRequest request
+    ) {
+        return categoryService.updateCategory(
+                id,
+                request.getCategoryName(),
+                request.getIcon()
+        );
+    }
 }

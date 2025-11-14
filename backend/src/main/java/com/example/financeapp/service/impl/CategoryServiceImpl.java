@@ -1,4 +1,4 @@
-package com.example.financeapp.service;
+package com.example.financeapp.service.impl;
 
 import com.example.financeapp.entity.Category;
 import com.example.financeapp.entity.TransactionType;
@@ -6,20 +6,22 @@ import com.example.financeapp.entity.User;
 import com.example.financeapp.repository.CategoryRepository;
 import com.example.financeapp.repository.TransactionTypeRepository;
 import com.example.financeapp.repository.UserRepository;
+import com.example.financeapp.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-public abstract class CategoryService {
+public class CategoryServiceImpl extends CategoryService {
 
     @Autowired private CategoryRepository categoryRepository;
     @Autowired private TransactionTypeRepository transactionTypeRepository;
     @Autowired private UserRepository userRepository;
 
-    // Tạo danh mục (giữ nguyên)
+    @Override
     public Category createCategory(Long userId, String name, String icon, Long transactionTypeId) {
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
@@ -35,10 +37,32 @@ public abstract class CategoryService {
         return categoryRepository.save(category);
     }
 
-    // KHÔNG được đặt method abstract bên trong method khác → sửa ra ngoài
-    public abstract Category updateCategory(Long id, String name, String icon);
+    @Override
+    public Category updateCategory(Long id, String name, String icon) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục"));
 
-    public abstract void deleteCategory(Long id);
+        if (name != null && !name.isBlank()) {
+            category.setCategoryName(name);
+        }
 
-    public abstract List<Category> getCategoriesByUser(Long userId);
+        if (icon != null && !icon.isBlank()) {
+            category.setIcon(icon);
+        }
+
+        return categoryRepository.save(category);
+    }
+
+    @Override
+    public void deleteCategory(Long id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục"));
+
+        categoryRepository.delete(category);
+    }
+
+    @Override
+    public List<Category> getCategoriesByUser(Long userId) {
+        return categoryRepository.findByUser_UserId(userId);
+    }
 }
