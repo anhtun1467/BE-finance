@@ -1,7 +1,6 @@
 package com.example.financeapp.entity;
 
 import jakarta.persistence.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -39,9 +38,9 @@ public class Wallet {
     @Column(name = "is_default")
     private boolean isDefault = false;
 
-    // ✨ NEW: Phân loại ví (Cá nhân / Nhóm)
+    // NEW: Phân loại ví (Cá nhân / Nhóm)
     @Column(name = "wallet_type", length = 20)
-    private String walletType = "PERSONAL"; // "PERSONAL" hoặc "GROUP"
+    private String walletType = "PERSONAL"; // PERSONAL hoặc GROUP
 
     @PreUpdate
     public void preUpdate() {
@@ -118,8 +117,8 @@ public class Wallet {
         return isDefault;
     }
 
-    public void setDefault(boolean isDefault) {
-        this.isDefault = isDefault;
+    public void setDefault(boolean aDefault) {
+        isDefault = aDefault;
     }
 
     public String getWalletType() {

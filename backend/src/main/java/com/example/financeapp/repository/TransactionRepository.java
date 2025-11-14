@@ -10,7 +10,11 @@ import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
+    // Lấy giao dịch theo user
     List<Transaction> findByUser_UserIdOrderByTransactionDateDesc(Long userId);
+
+    // Kiểm tra wallet có giao dịch không
+    boolean existsByWallet_WalletId(Long walletId);
 
     // ===== MERGE WALLET METHODS =====
 
