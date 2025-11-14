@@ -5,7 +5,6 @@ import com.example.financeapp.entity.TransactionType;
 import com.example.financeapp.entity.User;
 import com.example.financeapp.repository.CategoryRepository;
 import com.example.financeapp.repository.TransactionTypeRepository;
-import com.example.financeapp.repository.UserRepository;
 import com.example.financeapp.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,14 +16,9 @@ public class CategoryServiceImpl extends CategoryService {
 
     @Autowired private CategoryRepository categoryRepository;
     @Autowired private TransactionTypeRepository transactionTypeRepository;
-    @Autowired private UserRepository userRepository;
 
     @Override
-    public Category createCategory(Long userId, String name, String icon, Long transactionTypeId) {
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
-
+    public Category createCategory(User user, String name, String icon, Long transactionTypeId) {
         TransactionType transactionType = transactionTypeRepository.findById(transactionTypeId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy loại giao dịch"));
 

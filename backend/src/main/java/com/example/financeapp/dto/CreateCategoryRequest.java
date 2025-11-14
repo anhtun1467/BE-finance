@@ -14,9 +14,6 @@ public class CreateCategoryRequest {
     @Size(max = 255, message = "Icon không quá 255 ký tự")
     private String icon;
 
-    @NotNull(message = "ID người dùng không được để trống")
-    private Long userId;
-
     // Getters & Setters
     public String getCategoryName() { return categoryName; }
     public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
@@ -27,6 +24,4 @@ public class CreateCategoryRequest {
     public String getIcon() { return icon; }
     public void setIcon(String icon) { this.icon = icon; }
 
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
 }
