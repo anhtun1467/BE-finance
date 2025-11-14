@@ -38,7 +38,7 @@ public class User {
     private String avatar; // URL hoặc base64 của avatar
 
     @Column(name = "has_default_password")
-    private boolean hasDefaultPassword = false; // true nếu đang dùng mật khẩu mặc định
+    private Boolean hasDefaultPassword = false; // true nếu đang dùng mật khẩu mặc định
 
     // --- Getters & Setters ---
 
