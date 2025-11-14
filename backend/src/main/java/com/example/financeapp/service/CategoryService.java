@@ -41,4 +41,5 @@ public abstract class CategoryService {
     public abstract void deleteCategory(Long id);
 
     public abstract List<Category> getCategoriesByUser(Long userId);
+
 }

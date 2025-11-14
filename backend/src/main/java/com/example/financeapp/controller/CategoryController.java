@@ -37,4 +37,10 @@ public class CategoryController {
                 request.getIcon()
         );
     }
+    // Xóa danh mục
+    @DeleteMapping("/{id}")
+    public String deleteCategory(@PathVariable Long id) {
+        categoryService.deleteCategory(id);
+        return "Danh mục đã được xóa thành công";
+    }
 }
