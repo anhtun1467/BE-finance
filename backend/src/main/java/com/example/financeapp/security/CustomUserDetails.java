@@ -1,7 +1,7 @@
 package com.example.financeapp.security;
 
-import org.springframework.security.core.GrantedAuthority;
 import com.example.financeapp.entity.User;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -15,7 +15,11 @@ public class CustomUserDetails implements UserDetails {
     }
 
     public User getUser() {
-        return user;
+        return this.user;
+    }
+
+    public Long getUserId() {
+        return user != null ? user.getUserId() : null;
     }
 
     @Override
@@ -33,12 +37,8 @@ public class CustomUserDetails implements UserDetails {
         return user.getEmail();
     }
 
-    @Override
-    public boolean isAccountNonExpired() { return true; }
-    @Override
-    public boolean isAccountNonLocked() { return true; }
-    @Override
-    public boolean isCredentialsNonExpired() { return true; }
-    @Override
-    public boolean isEnabled() { return true; }
+    @Override public boolean isAccountNonExpired() { return true; }
+    @Override public boolean isAccountNonLocked() { return true; }
+    @Override public boolean isCredentialsNonExpired() { return true; }
+    @Override public boolean isEnabled() { return true; }
 }

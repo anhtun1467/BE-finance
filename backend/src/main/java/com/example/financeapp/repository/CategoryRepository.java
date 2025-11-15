@@ -9,12 +9,16 @@ import java.util.List;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    // Lấy danh mục theo User object
     List<Category> findByUser(User user);
-
-    // Lấy danh mục theo User và loại giao dịch
     List<Category> findByUserAndTransactionType(User user, TransactionType type);
-
-    // Lấy danh mục theo userId
     List<Category> findByUser_UserId(Long userId);
+    List<Category> findByUserIsNullAndIsSystemTrue();
+
+    boolean existsByCategoryNameAndTransactionTypeAndUser(
+            String categoryName, TransactionType transactionType, User user
+    );
+
+    boolean existsByCategoryNameAndTransactionTypeAndUserIsNullAndIsSystemTrue(
+            String categoryName, TransactionType transactionType
+    );
 }
