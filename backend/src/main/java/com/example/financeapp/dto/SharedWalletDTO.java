@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public class SharedWalletDTO {
     private Long walletId;
     private String walletName;
+    private String walletType; // ✨ NEW: "PERSONAL" hoặc "GROUP"
     private String currencyCode;
     private BigDecimal balance;
     private String description;
@@ -16,6 +17,7 @@ public class SharedWalletDTO {
     private Long ownerId;
     private String ownerName;
     private int totalMembers;
+    private boolean isDefault; // ✨ NEW: Ví có phải là ví mặc định không
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -38,6 +40,14 @@ public class SharedWalletDTO {
 
     public void setWalletName(String walletName) {
         this.walletName = walletName;
+    }
+
+    public String getWalletType() {
+        return walletType;
+    }
+
+    public void setWalletType(String walletType) {
+        this.walletType = walletType;
     }
 
     public String getCurrencyCode() {
@@ -110,6 +120,14 @@ public class SharedWalletDTO {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public boolean isDefault() {
+        return isDefault;
+    }
+
+    public void setDefault(boolean isDefault) {
+        this.isDefault = isDefault;
     }
 }
 

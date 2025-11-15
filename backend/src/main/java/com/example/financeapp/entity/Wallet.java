@@ -1,13 +1,9 @@
-
 package com.example.financeapp.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
 @Entity
 @Table(name = "wallets")
 public class Wallet {
@@ -42,14 +38,94 @@ public class Wallet {
     @Column(name = "is_default")
     private boolean isDefault = false;
 
-    public boolean isDefault() { return isDefault; }
-    public void setDefault(boolean isDefault) { this.isDefault = isDefault; }
+    // NEW: Phân loại ví (Cá nhân / Nhóm)
+    @Column(name = "wallet_type", length = 20)
+    private String walletType = "PERSONAL"; // PERSONAL hoặc GROUP
 
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void setCurrency(Object currency) {
+    // ============ GETTERS & SETTERS ============
+
+    public Long getWalletId() {
+        return walletId;
+    }
+
+    public void setWalletId(Long walletId) {
+        this.walletId = walletId;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public String getWalletName() {
+        return walletName;
+    }
+
+    public void setWalletName(String walletName) {
+        this.walletName = walletName;
+    }
+
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public void setCurrencyCode(String currencyCode) {
+        this.currencyCode = currencyCode;
+    }
+
+    public BigDecimal getBalance() {
+        return balance;
+    }
+
+    public void setBalance(BigDecimal balance) {
+        this.balance = balance;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public boolean isDefault() {
+        return isDefault;
+    }
+
+    public void setDefault(boolean aDefault) {
+        isDefault = aDefault;
+    }
+
+    public String getWalletType() {
+        return walletType;
+    }
+
+    public void setWalletType(String walletType) {
+        this.walletType = walletType;
     }
 }

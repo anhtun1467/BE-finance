@@ -13,12 +13,16 @@ public class CreateWalletRequest {
     @Pattern(regexp = "^[A-Z]{3}$", message = "Mã tiền tệ phải đúng định dạng ISO (VD: VND, USD)")
     private String currencyCode;
 
+    /**
+     * @deprecated Số dư ban đầu luôn là 0. Field này bị ignore trong backend.
+     * Để thêm tiền vào ví, hãy tạo transaction "Thu nhập" hoặc chuyển tiền từ ví khác.
+     */
+    @Deprecated
     @DecimalMin(value = "0.0", inclusive = true, message = "Số dư ban đầu phải ≥ 0")
     private Double initialBalance = 0.0;
 
     @Size(max = 255, message = "Mô tả không quá 255 ký tự")
     private String description;
-
 
     private Boolean setAsDefault;
 

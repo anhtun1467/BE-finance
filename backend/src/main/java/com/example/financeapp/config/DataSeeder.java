@@ -88,6 +88,7 @@ public class DataSeeder implements CommandLineRunner {
         category.setCategoryName(name);
         category.setTransactionType(type);
         category.setIcon(icon);
+        category.setUser(null);
         categoryRepository.save(category);
     }
 }
