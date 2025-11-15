@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections; // 👈 1. THÊM IMPORT NÀY
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -42,8 +43,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 if (jwtUtil.validateToken(token, email)) {
+
+                    // 2. ✅ SỬA LẠI DÒNG NÀY:
+                    // Thay "null" thứ ba bằng "Collections.emptyList()"
                     UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(email, null, null);
+                            new UsernamePasswordAuthenticationToken(email, null, Collections.emptyList());
+
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
