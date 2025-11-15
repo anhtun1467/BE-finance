@@ -44,11 +44,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 if (jwtUtil.validateToken(token, email)) {
+                    // LẤY USER TỪ DB
                     User user = userRepository.findByEmail(email)
                             .orElseThrow(() -> new RuntimeException("User không tồn tại"));
 
+                    // TẠO CustomUserDetails
                     CustomUserDetails userDetails = new CustomUserDetails(user);
 
+                    // SET VÀO SecurityContext
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails, null, userDetails.getAuthorities()
@@ -65,7 +68,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token không hợp lệ");
             return;
         } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Lỗi xác thực");
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Lỗi xác thực: " + e.getMessage());
             return;
         }
 
