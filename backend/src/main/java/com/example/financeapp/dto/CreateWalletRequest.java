@@ -26,6 +26,7 @@ public class CreateWalletRequest {
 
     private Boolean setAsDefault;
 
+    private String walletType;
     // Getters and Setters
     public String getWalletName() { return walletName; }
     public void setWalletName(String walletName) { this.walletName = walletName; }
@@ -41,4 +42,8 @@ public class CreateWalletRequest {
 
     public Boolean getSetAsDefault() { return setAsDefault; }
     public void setSetAsDefault(Boolean setAsDefault) { this.setAsDefault = setAsDefault; }
+
+    public String getWalletType() { return walletType; }
+    public void setWalletType(String walletType) { this.walletType = walletType; }
+
 }

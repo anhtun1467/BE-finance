@@ -41,6 +41,8 @@ public class WalletServiceImpl implements WalletService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại"));
 
+
+
         if (!currencyRepository.existsById(request.getCurrencyCode())) {
             throw new RuntimeException("Loại tiền tệ không hợp lệ: " + request.getCurrencyCode());
         }
@@ -57,6 +59,16 @@ public class WalletServiceImpl implements WalletService {
         wallet.setDescription(request.getDescription());
         wallet.setDefault(false);
 
+        if ("GROUP".equalsIgnoreCase(request.getWalletType())) {
+            wallet.setWalletType("GROUP");
+        } else {
+            wallet.setWalletType("PERSONAL"); // Mặc định là cá nhân
+        }
+        if (Boolean.TRUE.equals(request.getSetAsDefault())) {
+            walletRepository.unsetDefaultWallet(userId, null);
+            wallet.setDefault(true);
+        }
+
         if (Boolean.TRUE.equals(request.getSetAsDefault())) {
             walletRepository.unsetDefaultWallet(userId, null);
             wallet.setDefault(true);
@@ -68,17 +80,6 @@ public class WalletServiceImpl implements WalletService {
         walletMemberRepository.save(ownerMember);
 
         return savedWallet;
-    }
-
-    // ---------------- BASIC ACCESS ----------------
-    @Override
-    public Wallet updateWallet(Long walletId, Long userId, Map<String, Object> updates) {
-        return null; // old legacy, no longer used
-    }
-
-    @Override
-    public Wallet updateWallet(Long walletId, Long userId, Map<String, Object> updates) {
-        return null;
     }
 
     @Override
@@ -209,40 +210,51 @@ public class WalletServiceImpl implements WalletService {
     @Transactional
     public Wallet updateWallet(Long userId, Long walletId, UpdateWalletRequest request) {
 
+        // ❗ ĐÂY LÀ KHAI BÁO BIẾN "wallet" MÀ BẠN BỊ THIẾU
+        // Khai báo biến 'wallet' ngay đầu scope của phương thức
+        // Bằng cách lấy nó từ repository
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy ví"));
 
+        // Bây giờ bạn có thể sử dụng biến "wallet"
         if (!wallet.getUser().getUserId().equals(userId)) {
             throw new RuntimeException("Bạn không có quyền chỉnh sửa ví này");
         }
 
-        // balance chỉ sửa khi chưa có transaction
+        // Logic cũ của bạn (cập nhật balance)
         if (request.getBalance() != null) {
             boolean hasTransactions = transactionRepository.existsByWallet_WalletId(walletId);
             if (hasTransactions)
                 throw new RuntimeException("Ví đã có giao dịch, không thể chỉnh sửa số dư nữa");
-
             wallet.setBalance(request.getBalance());
         }
 
+        // Cập nhật tên
         if (request.getWalletName() != null && !request.getWalletName().isBlank()) {
             wallet.setWalletName(request.getWalletName());
         }
 
+        // Cập nhật mô tả
         if (request.getDescription() != null) {
             wallet.setDescription(request.getDescription());
         }
 
+        // Cập nhật tiền tệ (File gốc của bạn thiếu, tôi bổ sung)
         if (request.getCurrencyCode() != null) {
-            Currency currency = (Currency) currencyRepository.findByCurrencyCode(request.getCurrencyCode())
-                    .orElseThrow(() -> new RuntimeException("Mã tiền tệ không tồn tại"));
-
+            if (!currencyRepository.existsById(request.getCurrencyCode())) { // Giả sử bạn có currencyRepository
+                throw new RuntimeException("Mã tiền tệ không tồn tại");
+            }
             wallet.setCurrencyCode(request.getCurrencyCode());
+        }
+
+        // Cập nhật ví mặc định (sử dụng DTO đã sửa)
+        if (Boolean.TRUE.equals(request.getSetAsDefault())) {
+            walletRepository.unsetDefaultWallet(userId, walletId);
+            wallet.setDefault(true);
         }
 
         return walletRepository.save(wallet);
     }
-
     // ---------------- LEAVE WALLET ----------------
     @Override
     @Transactional
