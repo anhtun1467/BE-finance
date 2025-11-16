@@ -1,5 +1,6 @@
 package com.example.financeapp.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -7,6 +8,8 @@ import lombok.Setter;
 @Setter
 public class UpdateCategoryRequest {
 
-    private String categoryName; // tên mới
-    private String icon;         // icon mới
+    @NotBlank(message = "Tên danh mục không được để trống")
+    private String categoryName;
+
+    private String icon;
 }
