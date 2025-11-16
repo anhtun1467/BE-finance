@@ -25,55 +25,37 @@ public class Category {
     @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
-    // --- Constructors ---
-    public Category() {
-    }
+    // Thêm trường để phân biệt danh mục hệ thống
+    @Column(name = "is_system", nullable = false)
+    private boolean isSystem = false;
 
-    public Category(String categoryName, TransactionType transactionType, String icon, User user) {
+    // --- Constructors ---
+    public Category() {}
+
+    public Category(String categoryName, TransactionType transactionType, String icon, User user, boolean isSystem) {
         this.categoryName = categoryName;
         this.transactionType = transactionType;
         this.icon = icon;
         this.user = user;
+        this.isSystem = isSystem;
     }
 
     // --- Getters & Setters ---
-    public Long getCategoryId() {
-        return categoryId;
-    }
+    public Long getCategoryId() { return categoryId; }
+    public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
 
-    public void setCategoryId(Long categoryId) {
-        this.categoryId = categoryId;
-    }
+    public String getCategoryName() { return categoryName; }
+    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
 
-    public String getCategoryName() {
-        return categoryName;
-    }
+    public TransactionType getTransactionType() { return transactionType; }
+    public void setTransactionType(TransactionType transactionType) { this.transactionType = transactionType; }
 
-    public void setCategoryName(String categoryName) {
-        this.categoryName = categoryName;
-    }
+    public String getIcon() { return icon; }
+    public void setIcon(String icon) { this.icon = icon; }
 
-    public TransactionType getTransactionType() {
-        return transactionType;
-    }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
-    public void setTransactionType(TransactionType transactionType) {
-        this.transactionType = transactionType;
-    }
-
-    public String getIcon() {
-        return icon;
-    }
-
-    public void setIcon(String icon) {
-        this.icon = icon;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
+    public boolean isSystem() { return isSystem; }
+    public void setSystem(boolean system) { isSystem = system; }
 }

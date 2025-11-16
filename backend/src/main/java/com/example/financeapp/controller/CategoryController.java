@@ -1,13 +1,17 @@
 package com.example.financeapp.controller;
 
 import com.example.financeapp.dto.CreateCategoryRequest;
+import com.example.financeapp.dto.UpdateCategoryRequest;
 import com.example.financeapp.entity.Category;
 import com.example.financeapp.entity.User;
+import com.example.financeapp.security.CustomUserDetails;
 import com.example.financeapp.service.CategoryService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/categories")
@@ -15,37 +19,50 @@ public class CategoryController {
 
     @Autowired private CategoryService categoryService;
 
-    // Tạo danh mục
     @PostMapping("/create")
     public Category createCategory(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody CreateCategoryRequest request
     ) {
+        User user = getUserFromDetails(userDetails);
         return categoryService.createCategory(
-                user,
-                request.getCategoryName(),
-                request.getIcon(),
-                request.getTransactionTypeId()
+                user, request.getCategoryName(), request.getIcon(), request.getTransactionTypeId()
         );
     }
 
-    // Cập nhật danh mục
     @PutMapping("/{id}")
     public Category updateCategory(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long id,
-            @Valid @RequestBody CreateCategoryRequest request
+            @Valid @RequestBody UpdateCategoryRequest request
     ) {
+        User user = userDetails.getUser();
         return categoryService.updateCategory(
-                id,
-                request.getCategoryName(),
-                request.getIcon()
+                user, id, request.getCategoryName(), request.getIcon()
         );
     }
 
-    // Xóa danh mục
     @DeleteMapping("/{id}")
-    public String deleteCategory(@PathVariable Long id) {
-        categoryService.deleteCategory(id);
+    public String deleteCategory(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id
+    ) {
+        User user = getUserFromDetails(userDetails);
+        categoryService.deleteCategory(user, id);
         return "Danh mục đã được xóa thành công";
+    }
+
+    @GetMapping
+    public List<Category> getUserCategories(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        User user = getUserFromDetails(userDetails);
+        return categoryService.getCategoriesByUser(user);
+    }
+
+    // Helper method để tránh lặp code
+    private User getUserFromDetails(CustomUserDetails userDetails) {
+        if (userDetails == null || userDetails.getUser() == null) {
+            throw new RuntimeException("Không tìm thấy thông tin người dùng");
+        }
+        return userDetails.getUser();
     }
 }

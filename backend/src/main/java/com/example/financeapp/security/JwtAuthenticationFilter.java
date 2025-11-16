@@ -1,6 +1,8 @@
 package com.example.financeapp.security;
 
 import com.example.financeapp.config.JwtUtil;
+import com.example.financeapp.entity.User;
+import com.example.financeapp.repository.UserRepository;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureException;
@@ -22,8 +24,8 @@ import java.util.Collections; // 👈 1. THÊM IMPORT NÀY
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    @Autowired private JwtUtil jwtUtil;
+    @Autowired private UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -43,12 +45,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 if (jwtUtil.validateToken(token, email)) {
+                    // LẤY USER TỪ DB
+                    User user = userRepository.findByEmail(email)
+                            .orElseThrow(() -> new RuntimeException("User không tồn tại"));
 
-                    // 2. ✅ SỬA LẠI DÒNG NÀY:
-                    // Thay "null" thứ ba bằng "Collections.emptyList()"
+                    // TẠO CustomUserDetails
+                    CustomUserDetails userDetails = new CustomUserDetails(user);
+
+                    // SET VÀO SecurityContext
                     UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(email, null, Collections.emptyList());
-
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities()
+                            );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
@@ -59,6 +67,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         } catch (SignatureException | MalformedJwtException | UnsupportedJwtException e) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token không hợp lệ");
+            return;
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Lỗi xác thực: " + e.getMessage());
             return;
         }
 
