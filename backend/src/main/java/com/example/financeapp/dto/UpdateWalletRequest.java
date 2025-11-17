@@ -28,4 +28,7 @@ public class UpdateWalletRequest {
     private BigDecimal balance;
 
     private Boolean setAsDefault;
+
+    // Cho phép chuyển đổi loại ví: PERSONAL -> GROUP (không cho phép GROUP -> PERSONAL)
+    private String walletType; // "PERSONAL" hoặc "GROUP"
 }
