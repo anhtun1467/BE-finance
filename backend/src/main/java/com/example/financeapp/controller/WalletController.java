@@ -331,6 +331,9 @@ public class WalletController {
         } catch (RuntimeException ex) {
             res.put("error", ex.getMessage());
             return ResponseEntity.badRequest().body(res);
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
         }
     }
 
