@@ -26,7 +26,10 @@ public class CategoryController {
     ) {
         User user = getUserFromDetails(userDetails);
         return categoryService.createCategory(
-                user, request.getCategoryName(), request.getIcon(), request.getTransactionTypeId()
+                user,
+                request.getCategoryName(),
+                request.getDescription(),
+                request.getTransactionTypeId()
         );
     }
 
@@ -38,7 +41,10 @@ public class CategoryController {
     ) {
         User user = userDetails.getUser();
         return categoryService.updateCategory(
-                user, id, request.getCategoryName(), request.getIcon()
+                user,
+                id,
+                request.getCategoryName(),
+                request.getDescription()
         );
     }
 

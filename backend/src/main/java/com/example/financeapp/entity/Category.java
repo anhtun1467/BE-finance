@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "categories")
 public class Category {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "category_id")
@@ -18,29 +17,29 @@ public class Category {
     @JoinColumn(name = "type_id", nullable = false)
     private TransactionType transactionType;
 
-    @Column(name = "icon")
-    private String icon;
+    // Đổi từ icon → description
+    @Column(name = "description")
+    private String description;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
-    // Thêm trường để phân biệt danh mục hệ thống
     @Column(name = "is_system", nullable = false)
     private boolean isSystem = false;
 
-    // --- Constructors ---
+    // Constructors
     public Category() {}
 
-    public Category(String categoryName, TransactionType transactionType, String icon, User user, boolean isSystem) {
+    public Category(String categoryName, TransactionType transactionType, String description, User user, boolean isSystem) {
         this.categoryName = categoryName;
         this.transactionType = transactionType;
-        this.icon = icon;
+        this.description = description;
         this.user = user;
         this.isSystem = isSystem;
     }
 
-    // --- Getters & Setters ---
+    // Getters & Setters
     public Long getCategoryId() { return categoryId; }
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
 
@@ -50,8 +49,8 @@ public class Category {
     public TransactionType getTransactionType() { return transactionType; }
     public void setTransactionType(TransactionType transactionType) { this.transactionType = transactionType; }
 
-    public String getIcon() { return icon; }
-    public void setIcon(String icon) { this.icon = icon; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
