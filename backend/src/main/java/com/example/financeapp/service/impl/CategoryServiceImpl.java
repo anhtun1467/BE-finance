@@ -26,53 +26,43 @@ public class CategoryServiceImpl implements CategoryService {
     // TẠO DANH MỤC
     // ==============================
     @Override
-    public Category createCategory(User user, String name, String icon, Long transactionTypeId) {
+    public Category createCategory(User user, String name, String description, Long transactionTypeId) {
         TransactionType type = transactionTypeRepository.findById(transactionTypeId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy loại giao dịch"));
 
-        // Kiểm tra trùng tên: cùng tên + cùng loại + (của user HOẶC hệ thống)
         boolean duplicate = categoryRepository.existsByCategoryNameAndTransactionTypeAndUser(name, type, user)
                 || categoryRepository.existsByCategoryNameAndTransactionTypeAndUserIsNullAndIsSystemTrue(name, type);
-
         if (duplicate) {
             throw new RuntimeException("Danh mục '" + name + "' đã tồn tại trong loại giao dịch này");
         }
 
-        Category category = new Category(name, type, icon, user, false); // false = user-created
+        Category category = new Category(name, type, description, user, false);
         return categoryRepository.save(category);
     }
 
-    // ==============================
-    // CẬP NHẬT DANH MỤC
-    // ==============================
     @Override
-    public Category updateCategory(User currentUser, Long id, String name, String icon) {
+    public Category updateCategory(User currentUser, Long id, String name, String description) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục"));
 
-        // Không cho sửa danh mục hệ thống
         if (category.isSystem()) {
             throw new RuntimeException("Không thể sửa danh mục hệ thống");
         }
-
-        // Chỉ cho phép sửa danh mục của chính mình
         if (category.getUser() == null || !category.getUser().getUserId().equals(currentUser.getUserId())) {
             throw new RuntimeException("Bạn không có quyền sửa danh mục này");
         }
 
-        // Nếu đổi tên → kiểm tra trùng
         if (name != null && !name.isBlank() && !name.equals(category.getCategoryName())) {
             boolean duplicate = categoryRepository.existsByCategoryNameAndTransactionTypeAndUser(name, category.getTransactionType(), currentUser)
                     || categoryRepository.existsByCategoryNameAndTransactionTypeAndUserIsNullAndIsSystemTrue(name, category.getTransactionType());
-
             if (duplicate) {
                 throw new RuntimeException("Danh mục '" + name + "' đã tồn tại trong loại giao dịch này");
             }
             category.setCategoryName(name);
         }
 
-        if (icon != null && !icon.isBlank()) {
-            category.setIcon(icon);
+        if (description != null && !description.isBlank()) {
+            category.setDescription(description);     // đổi
         }
 
         return categoryRepository.save(category);

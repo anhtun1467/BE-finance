@@ -19,6 +19,9 @@ public class DeleteWalletResponse {
     private String newDefaultWalletName;
 
     // Constructors
+    public DeleteWalletResponse() {
+    }
+
     public DeleteWalletResponse(Long walletId, String walletName, BigDecimal balance, String currencyCode) {
         this.deletedWalletId = walletId;
         this.deletedWalletName = walletName;

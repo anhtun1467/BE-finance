@@ -7,9 +7,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class UpdateCategoryRequest {
-
     @NotBlank(message = "Tên danh mục không được để trống")
     private String categoryName;
 
-    private String icon;
+    private String description;
 }

@@ -50,7 +50,6 @@ public class DataSeeder implements CommandLineRunner {
         if (transactionTypeRepository.count() == 0) {
             System.out.println(">>> [DataSeeder] Bảng 'transaction_types' trống. Bắt đầu thêm dữ liệu mẫu...");
 
-            // 1. Tạo loại giao dịch
             TransactionType expense = new TransactionType();
             expense.setTypeName("Chi tiêu");
             transactionTypeRepository.save(expense);
@@ -59,22 +58,22 @@ public class DataSeeder implements CommandLineRunner {
             income.setTypeName("Thu nhập");
             transactionTypeRepository.save(income);
 
-            // 2. Tạo danh mục cho Chi tiêu
-            createCategory("Ăn uống", expense, "food");
-            createCategory("Di chuyển", expense, "transport");
-            createCategory("Mua sắm", expense, "shopping");
-            createCategory("Giải trí", expense, "entertainment");
-            createCategory("Hóa đơn", expense, "bills");
-            createCategory("Sức khỏe", expense, "health");
-            createCategory("Giáo dục", expense, "education");
-            createCategory("Khác", expense, "other");
+            // 2. Danh mục Chi tiêu (expense)
+            createCategory("Ăn uống",          expense, "Ăn uống hàng ngày, nhà hàng, cà phê, đồ ăn vặt");
+            createCategory("Di chuyển",        expense, "Xăng xe, gửi xe, Grab, taxi, vé xe bus, tàu");
+            createCategory("Mua sắm",          expense, "Quần áo, giày dép, phụ kiện, đồ dùng cá nhân");
+            createCategory("Giải trí",         expense, "Xem phim, karaoke, du lịch, chơi game, sự kiện");
+            createCategory("Hóa đơn",          expense, "Điện, nước, internet, điện thoại, truyền hình");
+            createCategory("Sức khỏe",         expense, "Khám bệnh, thuốc men, gym, yoga, thể thao");
+            createCategory("Giáo dục",         expense, "Học phí, sách vở, khóa học, dụng cụ học tập");
+            createCategory("Khác",             expense, "Các khoản chi tiêu khác không thuộc nhóm trên");
 
-            // 3. Tạo danh mục cho Thu nhập
-            createCategory("Lương", income, "salary");
-            createCategory("Thưởng", income, "bonus");
-            createCategory("Đầu tư", income, "investment");
-            createCategory("Quà tặng", income, "gift");
-            createCategory("Khác", income, "other");
+            // 3. Danh mục Thu nhập (income)
+            createCategory("Lương",            income, "Lương tháng, lương thưởng từ công việc chính");
+            createCategory("Thưởng",           income, "Thưởng hiệu suất, thưởng lễ Tết, thưởng dự án");
+            createCategory("Đầu tư",           income, "Lãi cổ phiếu, lãi tiết kiệm, lợi nhuận kinh doanh");
+            createCategory("Quà tặng",         income, "Tiền mừng cưới, sinh nhật, quà biếu từ người thân");
+            createCategory("Khác",             income, "Các khoản thu nhập khác không thuộc nhóm trên");
 
             System.out.println(">>> [DataSeeder] Đã thêm TransactionType + Category mẫu thành công.");
         } else {
@@ -82,12 +81,11 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
-    // Hàm hỗ trợ tạo danh mục
-    private void createCategory(String name, TransactionType type, String icon) {
+    private void createCategory(String name, TransactionType type, String description) {
         Category category = new Category();
         category.setCategoryName(name);
         category.setTransactionType(type);
-        category.setIcon(icon);
+        category.setDescription(description);
         category.setUser(null);
         category.setSystem(true);
         categoryRepository.save(category);
