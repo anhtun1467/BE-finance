@@ -21,6 +21,9 @@ public class TransferMoneyRequest {
     @DecimalMin(value = "0.01", message = "Số tiền phải lớn hơn 0")
     private BigDecimal amount;
 
+    @Size(max = 3, message = "Mã tiền tệ không hợp lệ")
+    private String targetCurrencyCode; // Currency của số tiền nhập vào (theo ví gửi/source wallet)
+
     @Size(max = 500, message = "Ghi chú không được vượt quá 500 ký tự")
     private String note; // Ghi chú tùy chọn
 
@@ -72,6 +75,14 @@ public class TransferMoneyRequest {
 
     public void setNote(String note) {
         this.note = note;
+    }
+
+    public String getTargetCurrencyCode() {
+        return targetCurrencyCode;
+    }
+
+    public void setTargetCurrencyCode(String targetCurrencyCode) {
+        this.targetCurrencyCode = targetCurrencyCode;
     }
 }
 

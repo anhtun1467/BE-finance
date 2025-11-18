@@ -238,7 +238,7 @@ public class AuthController {
     }
 
     // -----------------------------
-    // 🚪 ĐĂNG XUẤT
+    // 🚪 QUÊN MẬT KHẨU
     // -----------------------------
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, Object>> forgotPassword(@RequestBody Map<String, String> req) {
@@ -250,9 +250,15 @@ public class AuthController {
             return ResponseEntity.badRequest().body(res); // 400
         }
 
-        // Chỉ gửi OTP nếu email tồn tại
-        String otp = String.format("%06d", new Random().nextInt(999999));
+        // Kiểm tra tài khoản đã được xác thực chưa
         User user = userRepository.findByEmail(email).get();
+        if (!user.isEnabled()) {
+            res.put("error", "Email chưa được đăng kí");
+            return ResponseEntity.badRequest().body(res); // 400
+        }
+
+        // Chỉ gửi OTP nếu email tồn tại và tài khoản đã được xác thực
+        String otp = String.format("%06d", new Random().nextInt(999999));
         user.setVerificationCode(otp);
         user.setCodeGeneratedAt(LocalDateTime.now());
         userRepository.save(user);
@@ -264,78 +270,98 @@ public class AuthController {
 
     // Thêm hàm này vào AuthController.java
     @PostMapping("/verify-otp")
-    public Map<String, Object> verifyOtp(@RequestBody Map<String, String> req) {
+    public ResponseEntity<Map<String, Object>> verifyOtp(@RequestBody Map<String, String> req) {
         Map<String, Object> res = new HashMap<>();
         String email = req.get("email");
         String otp = req.get("Mã xác thực");
 
         if (email == null || otp == null) {
             res.put("error", "Thiếu email hoặc mã OTP");
-            return res;
+            return ResponseEntity.badRequest().body(res);
         }
 
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
             res.put("error", "Tài khoản không tồn tại");
-            return res;
+            return ResponseEntity.badRequest().body(res);
         }
 
-        // Kiểm tra mã
-        if (!otp.equals(user.getVerificationCode())) {
+        // Kiểm tra tài khoản đã được xác thực chưa
+        if (!user.isEnabled()) {
+            res.put("error", "Email chưa được đăng kí");
+            return ResponseEntity.badRequest().body(res);
+        }
+
+        // Kiểm tra mã OTP
+        if (user.getVerificationCode() == null || !otp.equals(user.getVerificationCode())) {
             res.put("error", "Mã xác thực sai");
-            return res;
+            return ResponseEntity.badRequest().body(res);
         }
 
         // Kiểm tra thời hạn
-        if (Duration.between(user.getCodeGeneratedAt(), LocalDateTime.now()).toMinutes() > 10) {
+        if (user.getCodeGeneratedAt() == null || Duration.between(user.getCodeGeneratedAt(), LocalDateTime.now()).toMinutes() > 10) {
             res.put("error", "Mã xác thực hết hạn");
-            return res;
+            return ResponseEntity.badRequest().body(res);
         }
 
         // Nếu mọi thứ OK
         res.put("message", "Xác thực mã thành công");
-        return res;
+        return ResponseEntity.ok(res);
     }
 
     @PostMapping("/reset-password")
-    public Map<String, Object> resetPassword(@RequestBody Map<String, String> req) {
+    public ResponseEntity<Map<String, Object>> resetPassword(@RequestBody Map<String, String> req) {
         Map<String, Object> res = new HashMap<>();
         String email = req.get("email");
         String otp = req.get("Mã xác thực");
         String newPassword = req.get("newPassword");
         String confirmPassword = req.get("confirmPassword");
 
-
         if (!isStrongPassword(newPassword)) {
             res.put("error", "Mật khẩu mới phải ≥8 ký tự, có chữ hoa, thường, số, ký tự đặc biệt");
-            return res;
+            return ResponseEntity.badRequest().body(res);
         }
         if (email == null || otp == null || newPassword == null || confirmPassword == null) {
             res.put("error", "Thiếu thông tin");
-            return res;
+            return ResponseEntity.badRequest().body(res);
         }
         if (!newPassword.equals(confirmPassword)) {
             res.put("error", "Mật khẩu xác nhận không khớp");
-            return res;
+            return ResponseEntity.badRequest().body(res);
         }
 
         User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null || !otp.equals(user.getVerificationCode())) {
-            res.put("error", "Mã xác thực sai");
-            return res;
-        }
-        if (Duration.between(user.getCodeGeneratedAt(), LocalDateTime.now()).toMinutes() > 10) {
-            res.put("error", "Mã xác thực hết hạn");
-            return res;
+        if (user == null) {
+            res.put("error", "Tài khoản không tồn tại");
+            return ResponseEntity.badRequest().body(res);
         }
 
+        // Kiểm tra tài khoản đã được xác thực chưa
+        if (!user.isEnabled()) {
+            res.put("error", "Email chưa được đăng kí");
+            return ResponseEntity.badRequest().body(res);
+        }
+
+        // Kiểm tra mã OTP trước
+        if (user.getVerificationCode() == null || !otp.equals(user.getVerificationCode())) {
+            res.put("error", "Mã xác thực sai");
+            return ResponseEntity.badRequest().body(res);
+        }
+
+        // Kiểm tra thời hạn OTP
+        if (user.getCodeGeneratedAt() == null || Duration.between(user.getCodeGeneratedAt(), LocalDateTime.now()).toMinutes() > 10) {
+            res.put("error", "Mã xác thực hết hạn");
+            return ResponseEntity.badRequest().body(res);
+        }
+
+        // Nếu mọi thứ OK, đổi mật khẩu
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setVerificationCode(null);
         user.setCodeGeneratedAt(null);
         userRepository.save(user);
 
         res.put("message", "Đổi mật khẩu thành công");
-        return res;
+        return ResponseEntity.ok(res);
     }
 
 

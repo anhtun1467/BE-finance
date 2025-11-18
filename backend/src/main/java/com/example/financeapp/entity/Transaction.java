@@ -42,14 +42,14 @@ public class Transaction {
     private String imageUrl;
 
     // ============ FIELDS CHO CURRENCY CONVERSION (Merge Wallet) ============
-    
+
     @Column(name = "original_amount", precision = 15, scale = 2)
     private BigDecimal originalAmount; // Số tiền gốc trước khi chuyển đổi (nếu có)
 
     @Column(name = "original_currency", length = 3)
     private String originalCurrency; // Loại tiền gốc (nếu có chuyển đổi)
 
-    @Column(name = "exchange_rate", precision = 10, scale = 6)
+    @Column(name = "exchange_rate", precision = 20, scale = 6)
     private BigDecimal exchangeRate; // Tỷ giá áp dụng (nếu có chuyển đổi)
 
     @Column(name = "merge_date")
