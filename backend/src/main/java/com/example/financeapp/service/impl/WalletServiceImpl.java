@@ -953,6 +953,80 @@ public class WalletServiceImpl implements WalletService {
         return walletTransferRepository.findByUser_UserIdOrderByTransferDateDesc(userId);
     }
 
+    // ---------------- UPDATE TRANSFER ----------------
+    @Override
+    @Transactional
+    public WalletTransfer updateTransfer(Long userId, Long transferId, UpdateTransferRequest request) {
+        // 1. Tìm transfer với user được fetch để tránh lazy loading exception
+        WalletTransfer transfer = walletTransferRepository.findByIdWithUser(transferId)
+                .orElseThrow(() -> new RuntimeException("Giao dịch chuyển tiền không tồn tại"));
+
+        // 2. Kiểm tra quyền sở hữu
+        if (transfer.getUser() == null || !transfer.getUser().getUserId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền chỉnh sửa giao dịch này");
+        }
+
+        // 3. Cập nhật chỉ note
+        if (request.getNote() != null) {
+            transfer.setNote(request.getNote().trim().isEmpty() ? null : request.getNote().trim());
+        } else {
+            transfer.setNote(null);
+        }
+
+        // 4. Lưu và trả về
+        return walletTransferRepository.save(transfer);
+    }
+
+    // ---------------- DELETE TRANSFER ----------------
+    @Override
+    @Transactional
+    public void deleteTransfer(Long userId, Long transferId) {
+        // 1. Tìm transfer với tất cả relationships
+        WalletTransfer transfer = walletTransferRepository.findByIdForDelete(transferId)
+                .orElseThrow(() -> new RuntimeException("Giao dịch chuyển tiền không tồn tại"));
+
+        // 2. Kiểm tra quyền sở hữu
+        if (transfer.getUser() == null || !transfer.getUser().getUserId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền xóa giao dịch này");
+        }
+
+        // 3. Lấy wallets với PESSIMISTIC LOCK để tránh race condition
+        Wallet fromWallet = walletRepository.findByIdWithLock(transfer.getFromWallet().getWalletId())
+                .orElseThrow(() -> new RuntimeException("Ví gửi không tồn tại"));
+        Wallet toWallet = walletRepository.findByIdWithLock(transfer.getToWallet().getWalletId())
+                .orElseThrow(() -> new RuntimeException("Ví nhận không tồn tại"));
+
+        // 4. Tính toán số tiền cần revert
+        // Số tiền gốc (theo currency của ví gửi)
+        BigDecimal originalAmount = transfer.getAmount();
+
+        // Số tiền đã được cộng vào ví nhận (tính từ balance tracking)
+        // Sử dụng toBalanceAfter - toBalanceBefore để có số tiền chính xác đã được cộng vào
+        BigDecimal targetAmountAdded = transfer.getToBalanceAfter().subtract(transfer.getToBalanceBefore());
+
+        // 5. Revert balance
+        // Ví gửi: cộng lại số tiền (theo currency của ví gửi)
+        BigDecimal newFromBalance = fromWallet.getBalance().add(originalAmount);
+
+        // Ví nhận: trừ số tiền đã được cộng vào (theo currency của ví nhận)
+        BigDecimal newToBalance = toWallet.getBalance().subtract(targetAmountAdded);
+
+        // 6. Kiểm tra ví nhận không được âm
+        if (newToBalance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new RuntimeException("Không thể xóa giao dịch vì ví âm tiền");
+        }
+
+        // 7. Cập nhật số dư
+        fromWallet.setBalance(newFromBalance);
+        walletRepository.save(fromWallet);
+
+        toWallet.setBalance(newToBalance);
+        walletRepository.save(toWallet);
+
+        // 8. Xóa transfer
+        walletTransferRepository.delete(transfer);
+    }
+
     // ---------------- HELPER ----------------
     private WalletMemberDTO convertToMemberDTO(WalletMember member) {
         User u = member.getUser();

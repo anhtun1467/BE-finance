@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface WalletTransferRepository extends JpaRepository<WalletTransfer, Long> {
@@ -75,5 +76,25 @@ public interface WalletTransferRepository extends JpaRepository<WalletTransfer, 
      * Đếm số transfers của user
      */
     long countByUser_UserId(Long userId);
+
+    /**
+     * Lấy transfer với tất cả relationships được fetch (để tránh lazy loading exception và serialization issues)
+     */
+    @Query("SELECT t FROM WalletTransfer t " +
+            "LEFT JOIN FETCH t.user " +
+            "LEFT JOIN FETCH t.fromWallet " +
+            "LEFT JOIN FETCH t.toWallet " +
+            "WHERE t.transferId = :transferId")
+    Optional<WalletTransfer> findByIdWithUser(@Param("transferId") Long transferId);
+
+    /**
+     * Lấy transfer với tất cả relationships để xóa (cần fetch để revert balance)
+     */
+    @Query("SELECT t FROM WalletTransfer t " +
+            "LEFT JOIN FETCH t.user " +
+            "LEFT JOIN FETCH t.fromWallet " +
+            "LEFT JOIN FETCH t.toWallet " +
+            "WHERE t.transferId = :transferId")
+    Optional<WalletTransfer> findByIdForDelete(@Param("transferId") Long transferId);
 }
 
