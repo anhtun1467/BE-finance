@@ -10,14 +10,14 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(
-    name = "wallet_transfers",
-    indexes = {
-        @Index(name = "idx_from_wallet", columnList = "from_wallet_id"),
-        @Index(name = "idx_to_wallet", columnList = "to_wallet_id"),
-        @Index(name = "idx_user", columnList = "user_id"),
-        @Index(name = "idx_transfer_date", columnList = "transfer_date"),
-        @Index(name = "idx_created_at", columnList = "created_at")
-    }
+        name = "wallet_transfers",
+        indexes = {
+                @Index(name = "idx_from_wallet", columnList = "from_wallet_id"),
+                @Index(name = "idx_to_wallet", columnList = "to_wallet_id"),
+                @Index(name = "idx_user", columnList = "user_id"),
+                @Index(name = "idx_transfer_date", columnList = "transfer_date"),
+                @Index(name = "idx_created_at", columnList = "created_at")
+        }
 )
 public class WalletTransfer {
 
@@ -27,7 +27,7 @@ public class WalletTransfer {
     private Long transferId;
 
     // ===== WALLET INFO =====
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "from_wallet_id", nullable = false)
     private Wallet fromWallet;
@@ -37,15 +37,26 @@ public class WalletTransfer {
     private Wallet toWallet;
 
     // ===== AMOUNT INFO =====
-    
+
     @Column(name = "amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
+    // ===== FIELDS CHO CURRENCY CONVERSION ============
+
+    @Column(name = "original_amount", precision = 15, scale = 2)
+    private BigDecimal originalAmount; // Số tiền gốc trước khi chuyển đổi (nếu có)
+
+    @Column(name = "original_currency", length = 3)
+    private String originalCurrency; // Loại tiền gốc trước khi chuyển đổi (nếu có)
+
+    @Column(name = "exchange_rate", precision = 20, scale = 6)
+    private BigDecimal exchangeRate; // Tỷ giá áp dụng (nếu có chuyển đổi)
+
     // ===== BALANCE TRACKING =====
-    
+
     @Column(name = "from_balance_before", precision = 15, scale = 2)
     private BigDecimal fromBalanceBefore;
 
@@ -59,7 +70,7 @@ public class WalletTransfer {
     private BigDecimal toBalanceAfter;
 
     // ===== METADATA =====
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user; // Người thực hiện chuyển tiền
@@ -81,7 +92,7 @@ public class WalletTransfer {
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     // ===== ENUM =====
-    
+
     public enum TransferStatus {
         COMPLETED,   // Hoàn thành
         PENDING,     // Đang chờ (cho tương lai nếu cần approval)
@@ -89,18 +100,18 @@ public class WalletTransfer {
     }
 
     // ===== LIFECYCLE =====
-    
+
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
 
     // ===== CONSTRUCTORS =====
-    
+
     public WalletTransfer() {
     }
 
-    public WalletTransfer(Wallet fromWallet, Wallet toWallet, BigDecimal amount, 
+    public WalletTransfer(Wallet fromWallet, Wallet toWallet, BigDecimal amount,
                           String currencyCode, User user, String note) {
         this.fromWallet = fromWallet;
         this.toWallet = toWallet;
@@ -113,7 +124,7 @@ public class WalletTransfer {
     }
 
     // ===== GETTERS & SETTERS =====
-    
+
     public Long getTransferId() {
         return transferId;
     }
@@ -232,6 +243,30 @@ public class WalletTransfer {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public BigDecimal getOriginalAmount() {
+        return originalAmount;
+    }
+
+    public void setOriginalAmount(BigDecimal originalAmount) {
+        this.originalAmount = originalAmount;
+    }
+
+    public String getOriginalCurrency() {
+        return originalCurrency;
+    }
+
+    public void setOriginalCurrency(String originalCurrency) {
+        this.originalCurrency = originalCurrency;
+    }
+
+    public BigDecimal getExchangeRate() {
+        return exchangeRate;
+    }
+
+    public void setExchangeRate(BigDecimal exchangeRate) {
+        this.exchangeRate = exchangeRate;
     }
 }
 

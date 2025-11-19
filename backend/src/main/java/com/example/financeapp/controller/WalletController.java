@@ -331,6 +331,9 @@ public class WalletController {
         } catch (RuntimeException ex) {
             res.put("error", ex.getMessage());
             return ResponseEntity.badRequest().body(res);
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
         }
     }
 
@@ -387,6 +390,21 @@ public class WalletController {
         } catch (RuntimeException ex) {
             res.put("error", ex.getMessage());
             return ResponseEntity.badRequest().body(res);
+        }
+    }
+
+    @GetMapping("/transfers")
+    public ResponseEntity<Map<String, Object>> getAllTransfers() {
+        Map<String, Object> res = new HashMap<>();
+        try {
+            Long userId = getCurrentUserId();
+            List<com.example.financeapp.entity.WalletTransfer> transfers = walletService.getAllTransfers(userId);
+            res.put("transfers", transfers);
+            res.put("total", transfers.size());
+            return ResponseEntity.ok(res);
+        } catch (Exception e) {
+            res.put("error", e.getMessage());
+            return ResponseEntity.status(500).body(res);
         }
     }
 

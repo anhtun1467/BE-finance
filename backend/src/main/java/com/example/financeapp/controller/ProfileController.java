@@ -52,7 +52,7 @@ public class ProfileController {
     @GetMapping
     public ResponseEntity<Map<String, Object>> getProfile() {
         Map<String, Object> res = new HashMap<>();
-        
+
         User user = getCurrentUser();
         if (user == null) {
             res.put("error", "Không tìm thấy thông tin người dùng");
@@ -67,6 +67,9 @@ public class ProfileController {
         userInfo.put("provider", user.getProvider());
         userInfo.put("avatar", user.getAvatar());
         userInfo.put("enabled", user.isEnabled());
+        // Thêm thông tin về việc user đã có password chưa
+        boolean hasPassword = user.getPasswordHash() != null && !user.getPasswordHash().trim().isEmpty();
+        userInfo.put("hasPassword", hasPassword);
 
         res.put("user", userInfo);
         return ResponseEntity.ok(res);
@@ -135,19 +138,19 @@ public class ProfileController {
         // Logic đổi mật khẩu:
         // - Nếu user chưa có password (Google user, passwordHash = null) → ĐẶT mật khẩu lần đầu
         // - Nếu đã có password → CẦN old password để đổi
-        
+
         if (user.getPasswordHash() == null || user.getPasswordHash().trim().isEmpty()) {
             // Trường hợp 1: User chưa có password (Google user đặt password lần đầu)
             // Không cần kiểm tra old password
             user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
             userRepository.save(user);
-            
+
             res.put("message", "Đặt mật khẩu thành công. Bây giờ bạn có thể đăng nhập bằng email và mật khẩu.");
             return ResponseEntity.ok(res);
         } else {
             // Trường hợp 2: Đổi mật khẩu (đã có password)
             // BẮT BUỘC phải có old password
-            
+
             if (request.getOldPassword() == null || request.getOldPassword().trim().isEmpty()) {
                 res.put("error", "Vui lòng nhập mật khẩu hiện tại");
                 return ResponseEntity.badRequest().body(res);
