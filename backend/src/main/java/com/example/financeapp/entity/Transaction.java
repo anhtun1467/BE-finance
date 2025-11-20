@@ -29,7 +29,7 @@ public class Transaction {
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
-    @Column(name = "amount", nullable = false, precision = 15, scale = 2)
+    @Column(name = "amount", nullable = false, precision = 20, scale = 8)
     private BigDecimal amount;
 
     @Column(name = "transaction_date", nullable = false)
@@ -43,7 +43,7 @@ public class Transaction {
 
     // ============ FIELDS CHO CURRENCY CONVERSION (Merge Wallet) ============
 
-    @Column(name = "original_amount", precision = 15, scale = 2)
+    @Column(name = "original_amount", precision = 20, scale = 8)
     private BigDecimal originalAmount; // Số tiền gốc trước khi chuyển đổi (nếu có)
 
     @Column(name = "original_currency", length = 3)

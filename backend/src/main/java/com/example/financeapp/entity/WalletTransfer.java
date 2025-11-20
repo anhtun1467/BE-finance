@@ -38,7 +38,7 @@ public class WalletTransfer {
 
     // ===== AMOUNT INFO =====
 
-    @Column(name = "amount", nullable = false, precision = 15, scale = 2)
+    @Column(name = "amount", nullable = false, precision = 20, scale = 8)
     private BigDecimal amount;
 
     @Column(name = "currency_code", nullable = false, length = 3)
@@ -46,7 +46,7 @@ public class WalletTransfer {
 
     // ===== FIELDS CHO CURRENCY CONVERSION ============
 
-    @Column(name = "original_amount", precision = 15, scale = 2)
+    @Column(name = "original_amount", precision = 20, scale = 8)
     private BigDecimal originalAmount; // Số tiền gốc trước khi chuyển đổi (nếu có)
 
     @Column(name = "original_currency", length = 3)
@@ -57,16 +57,16 @@ public class WalletTransfer {
 
     // ===== BALANCE TRACKING =====
 
-    @Column(name = "from_balance_before", precision = 15, scale = 2)
+    @Column(name = "from_balance_before", precision = 20, scale = 8)
     private BigDecimal fromBalanceBefore;
 
-    @Column(name = "from_balance_after", precision = 15, scale = 2)
+    @Column(name = "from_balance_after", precision = 20, scale = 8)
     private BigDecimal fromBalanceAfter;
 
-    @Column(name = "to_balance_before", precision = 15, scale = 2)
+    @Column(name = "to_balance_before", precision = 20, scale = 8)
     private BigDecimal toBalanceBefore;
 
-    @Column(name = "to_balance_after", precision = 15, scale = 2)
+    @Column(name = "to_balance_after", precision = 20, scale = 8)
     private BigDecimal toBalanceAfter;
 
     // ===== METADATA =====

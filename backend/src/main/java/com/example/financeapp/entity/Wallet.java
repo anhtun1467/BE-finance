@@ -24,7 +24,7 @@ public class Wallet {
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
-    @Column(name = "balance", precision = 15, scale = 2)
+    @Column(name = "balance", precision = 20, scale = 8)
     private BigDecimal balance = BigDecimal.ZERO;
 
     @Column(name = "description", length = 255)

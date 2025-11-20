@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * Implementation của ExchangeRateService
- * 
+ *
  * Version 1.0: Sử dụng tỷ giá cố định (hardcoded)
  * TODO: Tích hợp API lấy tỷ giá real-time (VD: exchangerate-api.com, fixer.io)
  */
@@ -29,7 +29,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         EXCHANGE_RATES.put("JPY", new BigDecimal("0.0063")); // 1 VND = 0.0063 JPY
         EXCHANGE_RATES.put("GBP", new BigDecimal("0.000032")); // 1 VND = 0.000032 GBP
         EXCHANGE_RATES.put("CNY", new BigDecimal("0.00030")); // 1 VND = 0.0003 CNY
-        
+
         // Hoặc tính theo chiều ngược (1 Currency = ? VND)
         // USD: 1 USD = 24,350 VND
         // EUR: 1 EUR = 26,315 VND
@@ -79,10 +79,12 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         }
 
         BigDecimal rate = getExchangeRate(fromCurrency, toCurrency);
-        
+
         // Convert: amount * rate
         // VD: $20 * 24,350 = 487,000 VND
-        return amount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
+        // Sử dụng scale = 8 để giữ độ chính xác cao, tránh mất số tiền nhỏ khi chuyển đổi
+        // Ví dụ: 1 VND = 0.000041 USD, nếu làm tròn về 2 chữ số sẽ thành 0.00 USD
+        return amount.multiply(rate).setScale(8, RoundingMode.HALF_UP);
     }
 }
 
