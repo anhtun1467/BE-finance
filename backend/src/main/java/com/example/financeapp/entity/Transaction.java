@@ -38,7 +38,7 @@ public class Transaction {
     @Column(name = "note", length = 500)
     private String note;
 
-    @Column(name = "image_url", columnDefinition = "TEXT")
+    @Column(name = "image_url", columnDefinition = "LONGTEXT")
     private String imageUrl;
 
     // ============ FIELDS CHO CURRENCY CONVERSION (Merge Wallet) ============

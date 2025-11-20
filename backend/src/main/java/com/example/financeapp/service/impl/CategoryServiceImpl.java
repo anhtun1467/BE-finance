@@ -4,6 +4,7 @@ import com.example.financeapp.entity.Category;
 import com.example.financeapp.entity.TransactionType;
 import com.example.financeapp.entity.User;
 import com.example.financeapp.repository.CategoryRepository;
+import com.example.financeapp.repository.TransactionRepository;
 import com.example.financeapp.repository.TransactionTypeRepository;
 import com.example.financeapp.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,9 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Autowired
     private TransactionTypeRepository transactionTypeRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     // ==============================
     // TẠO DANH MỤC
@@ -61,9 +65,14 @@ public class CategoryServiceImpl implements CategoryService {
             category.setCategoryName(name);
         }
 
+        // Cho phép set description về null nếu description rỗng hoặc chỉ có khoảng trắng
         if (description != null && !description.isBlank()) {
-            category.setDescription(description);     // đổi
+            category.setDescription(description);
+        } else if (description != null && description.isBlank()) {
+            // Nếu description là chuỗi rỗng thì set về null
+            category.setDescription(null);
         }
+        // Nếu description là null, giữ nguyên giá trị hiện tại (không thay đổi)
 
         return categoryRepository.save(category);
     }
@@ -82,6 +91,12 @@ public class CategoryServiceImpl implements CategoryService {
 
         if (category.getUser() == null || !category.getUser().getUserId().equals(currentUser.getUserId())) {
             throw new RuntimeException("Bạn không có quyền xóa danh mục này");
+        }
+
+        // Kiểm tra xem danh mục có đang được sử dụng trong giao dịch không
+        boolean hasTransactions = transactionRepository.existsByCategory_CategoryId(id);
+        if (hasTransactions) {
+            throw new RuntimeException("Danh mục đã có giao dịch");
         }
 
         categoryRepository.delete(category);

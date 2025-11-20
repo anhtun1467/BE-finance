@@ -408,4 +408,50 @@ public class WalletController {
         }
     }
 
+    @PutMapping("/transfers/{transferId}")
+    public ResponseEntity<Map<String, Object>> updateTransfer(
+            @PathVariable Long transferId,
+            @Valid @RequestBody com.example.financeapp.dto.UpdateTransferRequest request) {
+        Map<String, Object> res = new HashMap<>();
+        try {
+            Long userId = getCurrentUserId();
+            com.example.financeapp.entity.WalletTransfer transfer = walletService.updateTransfer(userId, transferId, request);
+
+            // Tạo DTO để tránh serialization issues với Hibernate proxies
+            com.example.financeapp.dto.UpdateTransferResponse response = new com.example.financeapp.dto.UpdateTransferResponse(
+                    transfer.getTransferId(),
+                    transfer.getNote(),
+                    transfer.getUpdatedAt()
+            );
+
+            res.put("message", "Cập nhật giao dịch chuyển tiền thành công");
+            res.put("transfer", response);
+            return ResponseEntity.ok(res);
+        } catch (RuntimeException e) {
+            res.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(res);
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
+    }
+
+    @DeleteMapping("/transfers/{transferId}")
+    public ResponseEntity<Map<String, Object>> deleteTransfer(
+            @PathVariable Long transferId) {
+        Map<String, Object> res = new HashMap<>();
+        try {
+            Long userId = getCurrentUserId();
+            walletService.deleteTransfer(userId, transferId);
+            res.put("message", "Xóa giao dịch chuyển tiền thành công");
+            return ResponseEntity.ok(res);
+        } catch (RuntimeException e) {
+            res.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(res);
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
+    }
+
 }

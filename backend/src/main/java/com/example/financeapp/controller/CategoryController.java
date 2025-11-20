@@ -8,10 +8,13 @@ import com.example.financeapp.security.CustomUserDetails;
 import com.example.financeapp.service.CategoryService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/categories")
@@ -49,13 +52,23 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    public String deleteCategory(
+    public ResponseEntity<Map<String, Object>> deleteCategory(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long id
     ) {
-        User user = getUserFromDetails(userDetails);
-        categoryService.deleteCategory(user, id);
-        return "Danh mục đã được xóa thành công";
+        Map<String, Object> res = new HashMap<>();
+        try {
+            User user = getUserFromDetails(userDetails);
+            categoryService.deleteCategory(user, id);
+            res.put("message", "Danh mục đã được xóa thành công");
+            return ResponseEntity.ok(res);
+        } catch (RuntimeException e) {
+            res.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(res);
+        } catch (Exception e) {
+            res.put("error", "Lỗi máy chủ nội bộ: " + e.getMessage());
+            return ResponseEntity.status(500).body(res);
+        }
     }
 
     @GetMapping

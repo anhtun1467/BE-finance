@@ -39,4 +39,9 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("sourceWalletId") Long sourceWalletId,
             @Param("targetWalletId") Long targetWalletId
     );
+
+    /**
+     * Kiểm tra category có trong giao dịch không
+     */
+    boolean existsByCategory_CategoryId(Long categoryId);
 }

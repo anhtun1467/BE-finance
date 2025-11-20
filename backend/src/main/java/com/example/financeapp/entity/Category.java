@@ -1,5 +1,6 @@
 package com.example.financeapp.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -55,6 +56,7 @@ public class Category {
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
 
+    @JsonProperty("isSystem")
     public boolean isSystem() { return isSystem; }
     public void setSystem(boolean system) { isSystem = system; }
 }
