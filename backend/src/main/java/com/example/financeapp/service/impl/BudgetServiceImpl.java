@@ -12,11 +12,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class BudgetServiceImpl implements BudgetService {
 
-    @Autowired private BudgetRepository budgetRepository;
-    @Autowired private UserRepository userRepository;
-    @Autowired private CategoryRepository categoryRepository;
-    @Autowired private WalletRepository walletRepository;
-    @Autowired private WalletService walletService;
+    @Autowired
+    private BudgetRepository budgetRepository;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private CategoryRepository categoryRepository;
+    @Autowired
+    private WalletRepository walletRepository;
+    @Autowired
+    private WalletService walletService;
+
+    // src/main/java/com/example/financeapp/service/impl/BudgetServiceImpl.java
 
     @Override
     @Transactional
@@ -25,12 +32,10 @@ public class BudgetServiceImpl implements BudgetService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
-        // Kiểm tra ngày hợp lệ
         if (request.getStartDate().isAfter(request.getEndDate())) {
             throw new RuntimeException("Ngày bắt đầu phải trước hoặc bằng ngày kết thúc");
         }
 
-        // Kiểm tra danh mục tồn tại + là danh mục Chi tiêu
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Danh mục không tồn tại"));
 
@@ -38,8 +43,8 @@ public class BudgetServiceImpl implements BudgetService {
             throw new RuntimeException("Chỉ được tạo ngân sách cho danh mục Chi tiêu");
         }
 
-        // Kiểm tra ví (nếu có)
         Wallet wallet = null;
+        Long walletIdForCheck = null;
         if (request.getWalletId() != null) {
             wallet = walletRepository.findById(request.getWalletId())
                     .orElseThrow(() -> new RuntimeException("Ví không tồn tại"));
@@ -47,9 +52,27 @@ public class BudgetServiceImpl implements BudgetService {
             if (!walletService.hasAccess(wallet.getWalletId(), userId)) {
                 throw new RuntimeException("Bạn không có quyền truy cập ví này");
             }
+            walletIdForCheck = wallet.getWalletId();
         }
 
-        // Tạo ngân sách
+        boolean alreadyExists = budgetRepository.existsExactlySameBudget(
+                user,
+                category,
+                wallet,
+                walletIdForCheck,
+                request.getStartDate(),
+                request.getEndDate()
+        );
+
+        if (alreadyExists) {
+            throw new RuntimeException(
+                    "Bạn đã tạo ngân sách cho danh mục \"" + category.getCategoryName() +
+                            "\" trong khoảng thời gian từ " + request.getStartDate() +
+                            " đến " + request.getEndDate() + ". Vui lòng chỉnh sửa ngân sách cũ hoặc chọn khoảng thời gian khác."
+            );
+        }
+
+        // Tạo ngân sách mới
         Budget budget = new Budget();
         budget.setUser(user);
         budget.setCategory(category);
@@ -57,7 +80,8 @@ public class BudgetServiceImpl implements BudgetService {
         budget.setAmountLimit(request.getAmountLimit());
         budget.setStartDate(request.getStartDate());
         budget.setEndDate(request.getEndDate());
-        budget.setNote(request.getNote() != null && !request.getNote().isBlank() ? request.getNote().trim() : null);
+        budget.setNote(request.getNote() != null && !request.getNote().trim().isEmpty()
+                ? request.getNote().trim() : null);
 
         return budgetRepository.save(budget);
     }
