@@ -42,6 +42,8 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
       AND (
             (b.wallet IS NULL AND :walletId IS NULL)
          OR (b.wallet IS NOT NULL AND :walletId IS NOT NULL AND b.wallet.walletId = :walletId)
+         OR (b.wallet IS NULL AND :walletId IS NOT NULL)
+         OR (b.wallet IS NOT NULL AND :walletId IS NULL)
           )
       AND b.startDate <= :newEndDate
       AND b.endDate >= :newStartDate
