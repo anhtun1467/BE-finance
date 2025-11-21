@@ -1,7 +1,11 @@
 package com.example.financeapp.config;
 
-import com.example.financeapp.entity.*;
-import com.example.financeapp.repository.*;
+import com.example.financeapp.category.entity.Category;
+import com.example.financeapp.category.repository.CategoryRepository;
+import com.example.financeapp.transaction.entity.TransactionType;
+import com.example.financeapp.transaction.repository.TransactionTypeRepository;
+import com.example.financeapp.wallet.entity.Currency;
+import com.example.financeapp.wallet.repository.CurrencyRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;

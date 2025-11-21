@@ -1,7 +1,7 @@
 package com.example.financeapp.security;
 
-import com.example.financeapp.entity.User;
-import com.example.financeapp.repository.UserRepository;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

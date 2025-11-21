@@ -1,4 +1,4 @@
-package com.example.financeapp.dto;
+package com.example.financeapp.auth.dto;
 
 public class ChangePasswordRequest {
     private String oldPassword;  // Nullable cho lần đổi đầu tiên từ mật khẩu mặc định

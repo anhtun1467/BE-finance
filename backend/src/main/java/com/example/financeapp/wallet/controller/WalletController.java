@@ -1,10 +1,11 @@
-package com.example.financeapp.controller;
+package com.example.financeapp.wallet.controller;
 
-import com.example.financeapp.dto.*;
-import com.example.financeapp.entity.User;
-import com.example.financeapp.entity.Wallet;
-import com.example.financeapp.repository.UserRepository;
-import com.example.financeapp.service.WalletService;
+import com.example.financeapp.wallet.dto.*;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.wallet.entity.Wallet;
+import com.example.financeapp.wallet.entity.WalletTransfer;
+import com.example.financeapp.user.repository.UserRepository;
+import com.example.financeapp.wallet.service.WalletService;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -398,7 +399,7 @@ public class WalletController {
         Map<String, Object> res = new HashMap<>();
         try {
             Long userId = getCurrentUserId();
-            List<com.example.financeapp.entity.WalletTransfer> transfers = walletService.getAllTransfers(userId);
+            List<WalletTransfer> transfers = walletService.getAllTransfers(userId);
             res.put("transfers", transfers);
             res.put("total", transfers.size());
             return ResponseEntity.ok(res);
@@ -411,14 +412,14 @@ public class WalletController {
     @PutMapping("/transfers/{transferId}")
     public ResponseEntity<Map<String, Object>> updateTransfer(
             @PathVariable Long transferId,
-            @Valid @RequestBody com.example.financeapp.dto.UpdateTransferRequest request) {
+            @Valid @RequestBody UpdateTransferRequest request) {
         Map<String, Object> res = new HashMap<>();
         try {
             Long userId = getCurrentUserId();
-            com.example.financeapp.entity.WalletTransfer transfer = walletService.updateTransfer(userId, transferId, request);
+            WalletTransfer transfer = walletService.updateTransfer(userId, transferId, request);
 
             // Tạo DTO để tránh serialization issues với Hibernate proxies
-            com.example.financeapp.dto.UpdateTransferResponse response = new com.example.financeapp.dto.UpdateTransferResponse(
+            UpdateTransferResponse response = new UpdateTransferResponse(
                     transfer.getTransferId(),
                     transfer.getNote(),
                     transfer.getUpdatedAt()

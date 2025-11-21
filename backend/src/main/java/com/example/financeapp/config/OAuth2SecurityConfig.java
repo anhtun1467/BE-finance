@@ -1,6 +1,6 @@
 package com.example.financeapp.config;
 
-import com.example.financeapp.repository.UserRepository;
+import com.example.financeapp.user.repository.UserRepository;
 import com.example.financeapp.security.OAuth2LoginSuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

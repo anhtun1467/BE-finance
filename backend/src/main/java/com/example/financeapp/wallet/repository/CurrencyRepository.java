@@ -1,7 +1,7 @@
 
-package com.example.financeapp.repository;
+package com.example.financeapp.wallet.repository;
 
-import com.example.financeapp.entity.Currency;
+import com.example.financeapp.wallet.entity.Currency;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

@@ -1,5 +1,8 @@
-package com.example.financeapp.entity;
+package com.example.financeapp.budget.entity;
 
+import com.example.financeapp.category.entity.Category;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.wallet.entity.Wallet;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;

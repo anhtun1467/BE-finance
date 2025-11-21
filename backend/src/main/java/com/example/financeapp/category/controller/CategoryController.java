@@ -1,11 +1,11 @@
-package com.example.financeapp.controller;
+package com.example.financeapp.category.controller;
 
-import com.example.financeapp.dto.CreateCategoryRequest;
-import com.example.financeapp.dto.UpdateCategoryRequest;
-import com.example.financeapp.entity.Category;
-import com.example.financeapp.entity.User;
+import com.example.financeapp.category.dto.CreateCategoryRequest;
+import com.example.financeapp.category.dto.UpdateCategoryRequest;
+import com.example.financeapp.category.entity.Category;
+import com.example.financeapp.user.entity.User;
 import com.example.financeapp.security.CustomUserDetails;
-import com.example.financeapp.service.CategoryService;
+import com.example.financeapp.category.service.CategoryService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

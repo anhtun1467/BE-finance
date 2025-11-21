@@ -1,7 +1,7 @@
-package com.example.financeapp.service;
+package com.example.financeapp.category.service;
 
-import com.example.financeapp.entity.Category;
-import com.example.financeapp.entity.User;
+import com.example.financeapp.category.entity.Category;
+import com.example.financeapp.user.entity.User;
 
 import java.util.List;
 

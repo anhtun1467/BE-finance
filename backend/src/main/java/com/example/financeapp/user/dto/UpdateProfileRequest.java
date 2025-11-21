@@ -1,4 +1,4 @@
-package com.example.financeapp.dto;
+package com.example.financeapp.user.dto;
 
 public class UpdateProfileRequest {
     private String fullName;

@@ -1,6 +1,6 @@
 package com.example.financeapp.security;
 
-import com.example.financeapp.entity.User;
+import com.example.financeapp.user.entity.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 

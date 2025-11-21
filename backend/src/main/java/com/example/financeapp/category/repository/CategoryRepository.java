@@ -1,8 +1,8 @@
-package com.example.financeapp.repository;
+package com.example.financeapp.category.repository;
 
-import com.example.financeapp.entity.Category;
-import com.example.financeapp.entity.TransactionType;
-import com.example.financeapp.entity.User;
+import com.example.financeapp.category.entity.Category;
+import com.example.financeapp.transaction.entity.TransactionType;
+import com.example.financeapp.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

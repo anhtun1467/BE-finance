@@ -1,10 +1,10 @@
-package com.example.financeapp.controller;
+package com.example.financeapp.budget.controller;
 
-import com.example.financeapp.dto.CreateBudgetRequest;
-import com.example.financeapp.entity.Budget;
-import com.example.financeapp.entity.User;
+import com.example.financeapp.budget.dto.CreateBudgetRequest;
+import com.example.financeapp.budget.entity.Budget;
+import com.example.financeapp.user.entity.User;
 import com.example.financeapp.security.CustomUserDetails;
-import com.example.financeapp.service.BudgetService;
+import com.example.financeapp.budget.service.BudgetService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

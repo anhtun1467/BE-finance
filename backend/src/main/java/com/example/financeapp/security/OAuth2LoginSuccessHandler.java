@@ -1,8 +1,8 @@
 package com.example.financeapp.security;
 
 import com.example.financeapp.config.JwtUtil;
-import com.example.financeapp.entity.User;
-import com.example.financeapp.repository.UserRepository;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;

@@ -1,9 +1,9 @@
-package com.example.financeapp.repository;
+package com.example.financeapp.budget.repository;
 
-import com.example.financeapp.entity.Budget;
-import com.example.financeapp.entity.Category;
-import com.example.financeapp.entity.User;
-import com.example.financeapp.entity.Wallet;
+import com.example.financeapp.budget.entity.Budget;
+import com.example.financeapp.category.entity.Category;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.wallet.entity.Wallet;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

@@ -1,7 +1,7 @@
-package com.example.financeapp.controller;
+package com.example.financeapp.auth.controller;
 
-import com.example.financeapp.entity.User;
-import com.example.financeapp.repository.UserRepository;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.user.repository.UserRepository;
 import com.example.financeapp.config.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.oauth2.core.user.OAuth2User;

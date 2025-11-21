@@ -1,4 +1,4 @@
-package com.example.financeapp.service;
+package com.example.financeapp.wallet.service;
 
 import java.math.BigDecimal;
 

@@ -1,12 +1,12 @@
-package com.example.financeapp.service.impl;
+package com.example.financeapp.category.service.impl;
 
-import com.example.financeapp.entity.Category;
-import com.example.financeapp.entity.TransactionType;
-import com.example.financeapp.entity.User;
-import com.example.financeapp.repository.CategoryRepository;
-import com.example.financeapp.repository.TransactionRepository;
-import com.example.financeapp.repository.TransactionTypeRepository;
-import com.example.financeapp.service.CategoryService;
+import com.example.financeapp.category.entity.Category;
+import com.example.financeapp.transaction.entity.TransactionType;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.category.repository.CategoryRepository;
+import com.example.financeapp.transaction.repository.TransactionRepository;
+import com.example.financeapp.transaction.repository.TransactionTypeRepository;
+import com.example.financeapp.category.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

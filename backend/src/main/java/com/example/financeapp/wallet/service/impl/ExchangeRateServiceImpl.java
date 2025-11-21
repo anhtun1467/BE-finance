@@ -1,6 +1,6 @@
-package com.example.financeapp.service.impl;
+package com.example.financeapp.wallet.service.impl;
 
-import com.example.financeapp.service.ExchangeRateService;
+import com.example.financeapp.wallet.service.ExchangeRateService;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;

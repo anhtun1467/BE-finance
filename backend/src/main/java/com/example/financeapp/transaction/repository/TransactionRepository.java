@@ -1,6 +1,6 @@
-package com.example.financeapp.repository;
+package com.example.financeapp.transaction.repository;
 
-import com.example.financeapp.entity.Transaction;
+import com.example.financeapp.transaction.entity.Transaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

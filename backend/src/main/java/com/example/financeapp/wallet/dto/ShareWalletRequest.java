@@ -1,4 +1,4 @@
-package com.example.financeapp.dto;
+package com.example.financeapp.wallet.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

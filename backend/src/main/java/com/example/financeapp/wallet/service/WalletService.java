@@ -1,8 +1,9 @@
 // tập tin: .../service/WalletService.java
-package com.example.financeapp.service;
+package com.example.financeapp.wallet.service;
 
-import com.example.financeapp.dto.*;
-import com.example.financeapp.entity.Wallet;
+import com.example.financeapp.wallet.dto.*;
+import com.example.financeapp.wallet.entity.Wallet;
+import com.example.financeapp.wallet.entity.WalletTransfer;
 import jakarta.transaction.Transactional;
 import java.util.List;
 
@@ -46,9 +47,9 @@ public interface WalletService {
     @Transactional
     TransferMoneyResponse transferMoney(Long userId, TransferMoneyRequest request);
 
-    List<com.example.financeapp.entity.WalletTransfer> getAllTransfers(Long userId);
+    List<WalletTransfer> getAllTransfers(Long userId);
 
-    com.example.financeapp.entity.WalletTransfer updateTransfer(Long userId, Long transferId, com.example.financeapp.dto.UpdateTransferRequest request);
+    WalletTransfer updateTransfer(Long userId, Long transferId, UpdateTransferRequest request);
 
     @Transactional
     void deleteTransfer(Long userId, Long transferId);

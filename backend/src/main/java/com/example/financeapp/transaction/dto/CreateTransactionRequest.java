@@ -1,4 +1,4 @@
-package com.example.financeapp.dto;
+package com.example.financeapp.transaction.dto;
 
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;

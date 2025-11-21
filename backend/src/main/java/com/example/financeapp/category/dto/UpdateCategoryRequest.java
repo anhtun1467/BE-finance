@@ -1,4 +1,4 @@
-package com.example.financeapp.dto;
+package com.example.financeapp.category.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;

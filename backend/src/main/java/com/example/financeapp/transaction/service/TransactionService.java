@@ -1,8 +1,8 @@
-package com.example.financeapp.service;
+package com.example.financeapp.transaction.service;
 
-import com.example.financeapp.dto.CreateTransactionRequest;
-import com.example.financeapp.dto.UpdateTransactionRequest;
-import com.example.financeapp.entity.Transaction;
+import com.example.financeapp.transaction.dto.CreateTransactionRequest;
+import com.example.financeapp.transaction.dto.UpdateTransactionRequest;
+import com.example.financeapp.transaction.entity.Transaction;
 
 import java.util.List;
 

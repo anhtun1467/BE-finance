@@ -1,10 +1,19 @@
-package com.example.financeapp.service.impl;
+package com.example.financeapp.transaction.service.impl;
 
-import com.example.financeapp.dto.CreateTransactionRequest;
-import com.example.financeapp.dto.UpdateTransactionRequest;
-import com.example.financeapp.entity.*;
-import com.example.financeapp.repository.*;
-import com.example.financeapp.service.TransactionService;
+import com.example.financeapp.category.entity.Category;
+import com.example.financeapp.category.repository.CategoryRepository;
+import com.example.financeapp.transaction.dto.CreateTransactionRequest;
+import com.example.financeapp.transaction.dto.UpdateTransactionRequest;
+import com.example.financeapp.transaction.entity.Transaction;
+import com.example.financeapp.transaction.entity.TransactionType;
+import com.example.financeapp.transaction.repository.TransactionRepository;
+import com.example.financeapp.transaction.repository.TransactionTypeRepository;
+import com.example.financeapp.transaction.service.TransactionService;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.user.repository.UserRepository;
+import com.example.financeapp.wallet.entity.Wallet;
+import com.example.financeapp.wallet.repository.WalletMemberRepository;
+import com.example.financeapp.wallet.repository.WalletRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

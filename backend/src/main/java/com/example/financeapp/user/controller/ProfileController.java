@@ -1,9 +1,9 @@
-package com.example.financeapp.controller;
+package com.example.financeapp.user.controller;
 
-import com.example.financeapp.dto.ChangePasswordRequest;
-import com.example.financeapp.dto.UpdateProfileRequest;
-import com.example.financeapp.entity.User;
-import com.example.financeapp.repository.UserRepository;
+import com.example.financeapp.auth.dto.ChangePasswordRequest;
+import com.example.financeapp.user.dto.UpdateProfileRequest;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;

@@ -1,11 +1,11 @@
-package com.example.financeapp.controller;
+package com.example.financeapp.transaction.controller;
 
-import com.example.financeapp.dto.CreateTransactionRequest;
-import com.example.financeapp.dto.UpdateTransactionRequest;
-import com.example.financeapp.entity.Transaction;
-import com.example.financeapp.entity.User;
-import com.example.financeapp.repository.UserRepository;
-import com.example.financeapp.service.TransactionService;
+import com.example.financeapp.transaction.dto.CreateTransactionRequest;
+import com.example.financeapp.transaction.dto.UpdateTransactionRequest;
+import com.example.financeapp.transaction.entity.Transaction;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.user.repository.UserRepository;
+import com.example.financeapp.transaction.service.TransactionService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

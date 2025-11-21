@@ -1,4 +1,4 @@
-package com.example.financeapp.service;
+package com.example.financeapp.auth.service;
 
 public class GoogleService {
 }

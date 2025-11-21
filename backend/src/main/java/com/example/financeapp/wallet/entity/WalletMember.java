@@ -1,5 +1,6 @@
-package com.example.financeapp.entity;
+package com.example.financeapp.wallet.entity;
 
+import com.example.financeapp.user.entity.User;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 

@@ -1,4 +1,4 @@
-package com.example.financeapp.dto;
+package com.example.financeapp.wallet.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

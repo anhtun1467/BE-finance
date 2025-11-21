@@ -1,4 +1,4 @@
-package com.example.financeapp.dto;
+package com.example.financeapp.auth.dto;
 
 public class RegisterRequest {
     private String fullName;

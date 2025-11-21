@@ -1,8 +1,8 @@
-package com.example.financeapp.service.impl;
+package com.example.financeapp.auth.service.impl;
 
-import com.example.financeapp.dto.LoginRequest;
-import com.example.financeapp.dto.RegisterRequest;
-import com.example.financeapp.service.AuthService;
+import com.example.financeapp.auth.dto.LoginRequest;
+import com.example.financeapp.auth.dto.RegisterRequest;
+import com.example.financeapp.auth.service.AuthService;
 import org.springframework.stereotype.Service;
 
 @Service

@@ -1,13 +1,22 @@
-package com.example.financeapp.service.impl;
+package com.example.financeapp.wallet.service.impl;
 
-import com.example.financeapp.dto.*;
-import com.example.financeapp.entity.*;
-import com.example.financeapp.entity.WalletMember.WalletRole;
-import com.example.financeapp.entity.WalletTransfer;
-import com.example.financeapp.repository.*;
-import com.example.financeapp.service.WalletService;
-import com.example.financeapp.service.ExchangeRateService;
-
+import com.example.financeapp.transaction.entity.Transaction;
+import com.example.financeapp.transaction.repository.TransactionRepository;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.user.repository.UserRepository;
+import com.example.financeapp.wallet.dto.*;
+import com.example.financeapp.wallet.entity.Wallet;
+import com.example.financeapp.wallet.entity.WalletMember;
+import com.example.financeapp.wallet.entity.WalletMember.WalletRole;
+import com.example.financeapp.wallet.entity.WalletMergeHistory;
+import com.example.financeapp.wallet.entity.WalletTransfer;
+import com.example.financeapp.wallet.repository.CurrencyRepository;
+import com.example.financeapp.wallet.repository.WalletMemberRepository;
+import com.example.financeapp.wallet.repository.WalletMergeHistoryRepository;
+import com.example.financeapp.wallet.repository.WalletRepository;
+import com.example.financeapp.wallet.repository.WalletTransferRepository;
+import com.example.financeapp.wallet.service.ExchangeRateService;
+import com.example.financeapp.wallet.service.WalletService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

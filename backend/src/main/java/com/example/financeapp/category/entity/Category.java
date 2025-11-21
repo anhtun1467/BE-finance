@@ -1,5 +1,7 @@
-package com.example.financeapp.entity;
+package com.example.financeapp.category.entity;
 
+import com.example.financeapp.transaction.entity.TransactionType;
+import com.example.financeapp.user.entity.User;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 

@@ -1,12 +1,12 @@
-package com.example.financeapp.controller;
+package com.example.financeapp.auth.controller;
 
 import com.example.financeapp.config.JwtUtil;
-import com.example.financeapp.dto.LoginRequest;
-import com.example.financeapp.entity.User;
-import com.example.financeapp.repository.UserRepository;
-import com.example.financeapp.service.EmailService;
-import com.example.financeapp.service.RecaptchaService;
-import com.example.financeapp.service.OtpService;
+import com.example.financeapp.auth.dto.LoginRequest;
+import com.example.financeapp.user.entity.User;
+import com.example.financeapp.user.repository.UserRepository;
+import com.example.financeapp.auth.service.EmailService;
+import com.example.financeapp.auth.service.RecaptchaService;
+import com.example.financeapp.auth.service.OtpService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;

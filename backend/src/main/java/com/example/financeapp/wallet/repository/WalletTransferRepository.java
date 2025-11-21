@@ -1,6 +1,6 @@
-package com.example.financeapp.repository;
+package com.example.financeapp.wallet.repository;
 
-import com.example.financeapp.entity.WalletTransfer;
+import com.example.financeapp.wallet.entity.WalletTransfer;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
