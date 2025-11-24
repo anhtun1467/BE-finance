@@ -1,18 +1,18 @@
 package com.example.financeapp.exception;
 
 import jakarta.validation.ConstraintViolationException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Template response error
+    // ========================
+    // TEMPLATE RESPONSE ERROR
+    // ========================
     private Map<String, Object> buildErrorBody(ApiErrorCode code, String message) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("success", false);
@@ -22,22 +22,30 @@ public class GlobalExceptionHandler {
         return body;
     }
 
-    // 1️⃣ Lỗi tùy chỉnh của hệ thống (ApiException)
+    // ========================
+    // 1️⃣ LỖI TÙY CHỈNH CỦA HỆ THỐNG (ApiException)
+    // ========================
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<?> handleApiException(ApiException ex) {
+
+        // tránh trường hợp message null
         String message = (ex.getMessage() == null || ex.getMessage().isBlank())
                 ? "Lỗi không xác định"
                 : ex.getMessage();
 
         Map<String, Object> body = buildErrorBody(ex.getCode(), message);
+
         HttpStatus status = ex.getStatus() != null ? ex.getStatus() : HttpStatus.BAD_REQUEST;
 
         return ResponseEntity.status(status).body(body);
     }
 
+    // ========================
     // 2️⃣ Lỗi validate @Valid trong DTO
+    // ========================
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleValidation(MethodArgumentNotValidException ex) {
+
         Map<String, Object> body = buildErrorBody(ApiErrorCode.VALIDATION_ERROR, "Dữ liệu không hợp lệ");
 
         Map<String, String> fieldErrors = new LinkedHashMap<>();
@@ -46,12 +54,16 @@ public class GlobalExceptionHandler {
         );
 
         body.put("errors", fieldErrors);
+
         return ResponseEntity.badRequest().body(body);
     }
 
+    // ========================
     // 3️⃣ Lỗi validate @PathVariable, @RequestParam
+    // ========================
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<?> handleConstraint(ConstraintViolationException ex) {
+
         Map<String, Object> body = buildErrorBody(ApiErrorCode.VALIDATION_ERROR, "Dữ liệu không hợp lệ");
 
         List<String> details = new ArrayList<>();
@@ -61,13 +73,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
-    // 4️⃣ Lỗi thường gặp khác
+    // ========================
+    // 4️⃣ Lỗi thường gặp khác: NullPointer, IllegalState, IllegalArgument…
+    // ========================
     @ExceptionHandler({
             IllegalArgumentException.class,
             IllegalStateException.class
     })
     public ResponseEntity<?> handleIllegal(RuntimeException ex) {
-        ex.printStackTrace();
+
+        ex.printStackTrace(); // log
 
         Map<String, Object> body = buildErrorBody(
                 ApiErrorCode.INTERNAL_ERROR,
@@ -77,10 +92,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
+    // ========================
     // 5️⃣ Lỗi chung chung (fallback)
+    // ========================
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleOther(Exception ex) {
-        ex.printStackTrace();
+
+        ex.printStackTrace(); // log
 
         Map<String, Object> body = buildErrorBody(
                 ApiErrorCode.INTERNAL_ERROR,
@@ -90,4 +108,3 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 }
-
