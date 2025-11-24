@@ -19,4 +19,3 @@ public class ApiException extends RuntimeException {
         this(code, message, HttpStatus.BAD_REQUEST);
     }
 }
-
