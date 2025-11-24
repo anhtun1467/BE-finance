@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/me/login-logs")
+@RequestMapping("/api/me/login-logs")
 @CrossOrigin(origins = "*")
 public class UserLoginLogController {
 
