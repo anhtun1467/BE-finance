@@ -54,12 +54,12 @@ public class CategoryServiceImpl implements CategoryService {
         }
         // --------------------------------------
 
-        // Kiểm tra trùng tên (Logic cũ giữ nguyên nhưng thay categoryOwner cho đúng)
+        // Kiểm tra trùng tên (chỉ check các category chưa bị xóa)
         boolean duplicate;
         if (isSystem) {
-            duplicate = categoryRepository.existsByCategoryNameAndTransactionTypeAndUserIsNullAndIsSystemTrue(name, type);
+            duplicate = categoryRepository.existsByCategoryNameAndTransactionTypeAndUserIsNullAndIsSystemTrueAndDeletedFalse(name, type);
         } else {
-            duplicate = categoryRepository.existsByCategoryNameAndTransactionTypeAndUser(name, type, categoryOwner);
+            duplicate = categoryRepository.existsByCategoryNameAndTransactionTypeAndUserAndDeletedFalse(name, type, categoryOwner);
         }
 
         if (duplicate) {
@@ -74,6 +74,11 @@ public class CategoryServiceImpl implements CategoryService {
     public Category updateCategory(User currentUser, Long id, String name, String description) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục"));
+
+        // Kiểm tra nếu đã bị xóa mềm
+        if (category.isDeleted()) {
+            throw new RuntimeException("Không thể sửa danh mục đã bị xóa");
+        }
 
         boolean isAdmin = currentUser.getRole() == com.example.financeapp.security.Role.ADMIN;
         boolean isSystemCat = category.isSystem();
@@ -90,13 +95,22 @@ public class CategoryServiceImpl implements CategoryService {
             }
         }
 
-        // Logic cập nhật và check trùng tên khi sửa
+        // Logic cập nhật và check trùng tên khi sửa (chỉ check các category chưa bị xóa, trừ chính nó)
         if (name != null && !name.isBlank() && !name.equals(category.getCategoryName())) {
             boolean duplicate;
             if (isSystemCat) {
-                duplicate = categoryRepository.existsByCategoryNameAndTransactionTypeAndUserIsNullAndIsSystemTrue(name, category.getTransactionType());
+                // Check xem có category khác (không phải chính nó) với tên này không
+                List<Category> existing = categoryRepository.findByUserIsNullAndIsSystemTrueAndDeletedFalse();
+                duplicate = existing.stream()
+                        .anyMatch(c -> !c.getCategoryId().equals(category.getCategoryId()) &&
+                                c.getCategoryName().equals(name) &&
+                                c.getTransactionType().equals(category.getTransactionType()));
             } else {
-                duplicate = categoryRepository.existsByCategoryNameAndTransactionTypeAndUser(name, category.getTransactionType(), currentUser);
+                List<Category> existing = categoryRepository.findByUserAndDeletedFalse(currentUser);
+                duplicate = existing.stream()
+                        .anyMatch(c -> !c.getCategoryId().equals(category.getCategoryId()) &&
+                                c.getCategoryName().equals(name) &&
+                                c.getTransactionType().equals(category.getTransactionType()));
             }
             if (duplicate) throw new RuntimeException("Tên danh mục đã tồn tại");
             category.setCategoryName(name);
@@ -111,12 +125,17 @@ public class CategoryServiceImpl implements CategoryService {
         return categoryRepository.save(category);
     }
     // ==============================
-    // XÓA DANH MỤC
+    // XÓA DANH MỤC (SOFT DELETE)
     // ==============================
     @Override
     public void deleteCategory(User currentUser, Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục"));
+
+        // Kiểm tra nếu đã bị xóa mềm
+        if (category.isDeleted()) {
+            throw new RuntimeException("Danh mục này đã bị xóa");
+        }
 
         boolean isAdmin = currentUser.getRole() == com.example.financeapp.security.Role.ADMIN;
         boolean isSystemCat = category.isSystem();
@@ -133,21 +152,19 @@ public class CategoryServiceImpl implements CategoryService {
             }
         }
 
-        boolean hasTransactions = transactionRepository.existsByCategory_CategoryId(id);
-        if (hasTransactions) {
-            throw new RuntimeException("Danh mục đã có giao dịch, không thể xóa");
-        }
-
-        categoryRepository.delete(category);
+        // XÓA MỀM: Chỉ đánh dấu deleted = true, không xóa khỏi database
+        category.setDeleted(true);
+        categoryRepository.save(category);
     }
 
     // ==============================
-    // LẤY DANH SÁCH DANH MỤC CỦA USER
+    // LẤY DANH SÁCH DANH MỤC CỦA USER (BỎ QUA CÁC DANH MỤC ĐÃ BỊ XÓA MỀM)
     // ==============================
     @Override
     public List<Category> getCategoriesByUser(User user) {
-        List<Category> systemCategories = categoryRepository.findByUserIsNullAndIsSystemTrue();
-        List<Category> userCategories = categoryRepository.findByUser(user);
+        // Sử dụng query methods đã filter deleted = false
+        List<Category> systemCategories = categoryRepository.findByUserIsNullAndIsSystemTrueAndDeletedFalse();
+        List<Category> userCategories = categoryRepository.findByUserAndDeletedFalse(user);
 
         return Stream.concat(systemCategories.stream(), userCategories.stream())
                 .collect(Collectors.toList());
