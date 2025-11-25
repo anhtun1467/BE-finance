@@ -292,6 +292,9 @@ Redirect đến Google login, sau đó redirect về:
 
 **Headers:** `Authorization: Bearer <token>`
 
+**Query Parameters (optional):**
+- Có thể filter theo `walletType` ở frontend: `PERSONAL` hoặc `GROUP`
+
 **Response:**
 ```json
 {
@@ -310,11 +313,33 @@ Redirect đến Google login, sau đó redirect về:
       "isDefault": true,
       "createdAt": "2024-01-01T10:00:00",
       "updatedAt": "2024-01-01T10:00:00"
+    },
+    {
+      "walletId": 2,
+      "walletName": "Ví nhóm gia đình",
+      "walletType": "GROUP",
+      "currencyCode": "VND",
+      "balance": 5000000.00,
+      "description": "Ví chung gia đình",
+      "myRole": "OWNER",
+      "ownerId": 1,
+      "ownerName": "Nguyễn Văn A",
+      "totalMembers": 3,
+      "isDefault": false,
+      "createdAt": "2024-01-01T10:00:00",
+      "updatedAt": "2024-01-01T10:00:00"
     }
   ],
-  "total": 1
+  "total": 2
 }
 ```
+
+**Lưu ý về Wallet Groups:**
+- `walletType = "PERSONAL"`: Ví cá nhân (chỉ owner sử dụng)
+- `walletType = "GROUP"`: Ví nhóm (có thể chia sẻ với nhiều thành viên)
+- Frontend có thể filter/hiển thị riêng theo `walletType` để tạo "WalletGroupsPage"
+- Tất cả ví (PERSONAL và GROUP) đều được trả về trong cùng một API
+- Có thể phân loại ở frontend dựa trên field `walletType`
 
 ---
 
@@ -946,6 +971,418 @@ hoặc
 
 ---
 
+## 📊 Budget APIs (Hạn mức chi tiêu)
+
+### 1. Tạo ngân sách mới
+**POST** `/budgets/create`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "categoryId": 1,
+  "walletId": 1,
+  "amountLimit": 5000000.00,
+  "startDate": "2024-01-01",
+  "endDate": "2024-01-31",
+  "note": "Ngân sách ăn uống tháng 1"
+}
+```
+
+**Request Fields:**
+- `categoryId` (required): ID danh mục chi tiêu
+- `walletId` (optional): ID ví (null = áp dụng cho tất cả ví)
+- `amountLimit` (required): Hạn mức chi tiêu (phải ≥ 1.000 VND)
+- `startDate` (required): Ngày bắt đầu (format: YYYY-MM-DD)
+- `endDate` (required): Ngày kết thúc (format: YYYY-MM-DD)
+- `note` (optional): Ghi chú (tối đa 255 ký tự)
+
+**Response:**
+```json
+{
+  "message": "Tạo hạn mức chi tiêu thành công",
+  "budget": {
+    "budgetId": 1,
+    "categoryId": 1,
+    "categoryName": "Ăn uống",
+    "walletId": 1,
+    "walletName": "Ví chính",
+    "amountLimit": 5000000.00,
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31",
+    "note": "Ngân sách ăn uống tháng 1",
+    "status": "ACTIVE",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+}
+```
+
+**Lưu ý:**
+- Hạn mức chi tiêu không phụ thuộc vào số dư ví
+- Hạn mức có thể lớn hơn số dư hiện tại trong ví
+- Không được tạo ngân sách trùng lặp (cùng user, category, wallet, và khoảng thời gian)
+- Tên ngân sách = Tên danh mục
+
+---
+
+### 2. Lấy tất cả ngân sách của user
+**GET** `/budgets`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "budgets": [
+    {
+      "budgetId": 1,
+      "categoryId": 1,
+      "categoryName": "Ăn uống",
+      "walletId": 1,
+      "walletName": "Ví chính",
+      "amountLimit": 5000000.00,
+      "spentAmount": 3500000.00,
+      "remainingAmount": 1500000.00,
+      "exceededAmount": 0.00,
+      "usagePercentage": 70.0,
+      "status": "OK",
+      "budgetStatus": "ACTIVE",
+      "startDate": "2024-01-01",
+      "endDate": "2024-01-31",
+      "note": "Ngân sách ăn uống tháng 1",
+      "createdAt": "2024-01-01T10:00:00",
+      "updatedAt": "2024-01-01T10:00:00"
+    }
+  ],
+  "total": 1
+}
+```
+
+**Response Fields:**
+- `spentAmount`: Tổng số tiền đã chi trong khoảng thời gian
+- `remainingAmount`: Số tiền còn lại (amountLimit - spentAmount)
+- `exceededAmount`: Số tiền vượt hạn mức (0 nếu không vượt)
+- `usagePercentage`: Phần trăm sử dụng (%)
+- `status`: Trạng thái cảnh báo - `OK`, `WARNING` (>= 80%), `EXCEEDED` (vượt hạn mức)
+- `budgetStatus`: Trạng thái ngân sách - `ACTIVE`, `COMPLETED` (theo thời gian)
+
+---
+
+### 3. Lấy chi tiết một ngân sách
+**GET** `/budgets/{id}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "budget": {
+    "budgetId": 1,
+    "categoryId": 1,
+    "categoryName": "Ăn uống",
+    "walletId": 1,
+    "walletName": "Ví chính",
+    "amountLimit": 5000000.00,
+    "spentAmount": 5500000.00,
+    "remainingAmount": 0.00,
+    "exceededAmount": 500000.00,
+    "usagePercentage": 110.0,
+    "status": "EXCEEDED",
+    "budgetStatus": "ACTIVE",
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31",
+    "note": "Ngân sách ăn uống tháng 1",
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+}
+```
+
+**Lưu ý:**
+- Hiển thị đầy đủ thông tin: hạn mức, đã chi, còn lại, % sử dụng, trạng thái
+- Nếu vượt hạn mức: `exceededAmount` > 0, `status` = "EXCEEDED"
+- Nếu >= 80%: `status` = "WARNING"
+
+---
+
+### 4. Lấy danh sách giao dịch thuộc một ngân sách
+**GET** `/budgets/{id}/transactions`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "transactions": [
+    {
+      "transactionId": 1,
+      "amount": 50000.00,
+      "transactionDate": "2024-01-05T10:00:00",
+      "note": "Ăn trưa",
+      "isExceededBudget": true,
+      "exceededBudgetAmount": 50000.00,
+      "exceededBudgetId": 1,
+      "wallet": {
+        "walletId": 1,
+        "walletName": "Ví chính"
+      },
+      "category": {
+        "categoryId": 1,
+        "categoryName": "Ăn uống"
+      }
+    }
+  ],
+  "total": 1
+}
+```
+
+**Lưu ý:**
+- Trả về tất cả giao dịch chi tiêu thuộc ngân sách trong khoảng thời gian
+- Giao dịch vượt hạn mức có `isExceededBudget = true` và `exceededBudgetAmount` > 0
+- Có thể hiển thị nhãn "⚠️" cho giao dịch vượt hạn mức
+
+---
+
+## ⏰ Scheduled Transaction APIs (Giao dịch định kỳ)
+
+### 1. Tạo giao dịch đặt lịch
+**POST** `/scheduled-transactions/create`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body (Một lần):**
+```json
+{
+  "walletId": 1,
+  "transactionTypeId": 1,
+  "categoryId": 1,
+  "amount": 50000.00,
+  "note": "Thanh toán hóa đơn",
+  "scheduleType": "ONCE",
+  "startDate": "2024-12-20",
+  "executionTime": "08:00:00",
+  "endDate": null
+}
+```
+
+**Request Body (Hàng ngày):**
+```json
+{
+  "walletId": 1,
+  "transactionTypeId": 1,
+  "categoryId": 1,
+  "amount": 50000.00,
+  "note": "Cà phê sáng",
+  "scheduleType": "DAILY",
+  "startDate": "2024-12-01",
+  "executionTime": "07:00:00",
+  "endDate": "2024-12-31"
+}
+```
+
+**Request Body (Hàng tuần):**
+```json
+{
+  "walletId": 1,
+  "transactionTypeId": 1,
+  "categoryId": 1,
+  "amount": 200000.00,
+  "note": "Mua sắm cuối tuần",
+  "scheduleType": "WEEKLY",
+  "startDate": "2024-12-01",
+  "executionTime": "08:30:00",
+  "endDate": "2024-12-31",
+  "dayOfWeek": 1
+}
+```
+
+**Request Body (Hàng tháng):**
+```json
+{
+  "walletId": 1,
+  "transactionTypeId": 1,
+  "categoryId": 1,
+  "amount": 1000000.00,
+  "note": "Tiền nhà",
+  "scheduleType": "MONTHLY",
+  "startDate": "2024-12-01",
+  "executionTime": "09:00:00",
+  "endDate": "2024-12-31",
+  "dayOfMonth": 5
+}
+```
+
+**Request Body (Hàng năm):**
+```json
+{
+  "walletId": 1,
+  "transactionTypeId": 2,
+  "categoryId": 5,
+  "amount": 5000000.00,
+  "note": "Thưởng cuối năm",
+  "scheduleType": "YEARLY",
+  "startDate": "2024-12-01",
+  "executionTime": "10:00:00",
+  "endDate": null,
+  "month": 12,
+  "day": 31
+}
+```
+
+**Request Fields:**
+- `walletId` (required): ID ví
+- `transactionTypeId` (required): 1 = Chi tiêu, 2 = Thu nhập
+- `categoryId` (required): ID danh mục
+- `amount` (required): Số tiền (phải > 0)
+- `note` (optional): Ghi chú (tối đa 500 ký tự)
+- `scheduleType` (required): `ONCE`, `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`
+- `startDate` (required): Ngày bắt đầu (format: YYYY-MM-DD)
+- `executionTime` (required): Giờ thực hiện (format: HH:mm:ss)
+- `endDate` (optional): Ngày kết thúc (null = không giới hạn, chỉ cho định kỳ)
+- `dayOfWeek` (required cho WEEKLY): Thứ trong tuần (1-7, Monday-Sunday)
+- `dayOfMonth` (required cho MONTHLY): Ngày trong tháng (1-31)
+- `month` (required cho YEARLY): Tháng (1-12)
+- `day` (required cho YEARLY): Ngày (1-31)
+
+**Response:**
+```json
+{
+  "message": "Tạo lịch giao dịch thành công",
+  "scheduledTransaction": {
+    "scheduleId": 1,
+    "walletId": 1,
+    "walletName": "Ví chính",
+    "transactionTypeId": 1,
+    "transactionTypeName": "Chi tiêu",
+    "categoryId": 1,
+    "categoryName": "Ăn uống",
+    "amount": 50000.00,
+    "note": "Cà phê sáng",
+    "scheduleType": "DAILY",
+    "status": "PENDING",
+    "nextExecutionDate": "2024-12-01",
+    "executionTime": "07:00:00",
+    "endDate": "2024-12-31",
+    "dayOfWeek": null,
+    "dayOfMonth": null,
+    "month": null,
+    "day": null,
+    "completedCount": 0,
+    "failedCount": 0,
+    "createdAt": "2024-11-25T10:00:00",
+    "updatedAt": "2024-11-25T10:00:00"
+  }
+}
+```
+
+**Lưu ý:**
+- Số dư ví chỉ được kiểm tra khi đến thời điểm thực hiện (cho chi tiêu)
+- Nếu không đủ tiền: giao dịch được đánh dấu `FAILED`, nhưng lần tiếp theo vẫn được lên lịch (cho định kỳ)
+- Hệ thống tự động thực hiện giao dịch mỗi phút
+
+---
+
+### 2. Lấy tất cả giao dịch đặt lịch
+**GET** `/scheduled-transactions`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "scheduledTransactions": [
+    {
+      "scheduleId": 1,
+      "walletId": 1,
+      "walletName": "Ví chính",
+      "transactionTypeId": 1,
+      "transactionTypeName": "Chi tiêu",
+      "categoryId": 1,
+      "categoryName": "Ăn uống",
+      "amount": 50000.00,
+      "note": "Cà phê sáng",
+      "scheduleType": "DAILY",
+      "status": "PENDING",
+      "nextExecutionDate": "2024-12-01",
+      "executionTime": "07:00:00",
+      "endDate": "2024-12-31",
+      "completedCount": 5,
+      "failedCount": 0,
+      "createdAt": "2024-11-25T10:00:00",
+      "updatedAt": "2024-11-25T10:00:00"
+    }
+  ],
+  "total": 1
+}
+```
+
+**Lưu ý:**
+- Sắp xếp theo `nextExecutionDate` tăng dần
+- `status`: `PENDING`, `COMPLETED`, `FAILED`
+- `completedCount`: Số lần đã thực hiện thành công
+- `failedCount`: Số lần thất bại
+
+---
+
+### 3. Lấy chi tiết một giao dịch đặt lịch
+**GET** `/scheduled-transactions/{id}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "scheduledTransaction": {
+    "scheduleId": 1,
+    "walletId": 1,
+    "walletName": "Ví chính",
+    "transactionTypeId": 1,
+    "transactionTypeName": "Chi tiêu",
+    "categoryId": 1,
+    "categoryName": "Ăn uống",
+    "amount": 50000.00,
+    "note": "Cà phê sáng",
+    "scheduleType": "WEEKLY",
+    "status": "PENDING",
+    "nextExecutionDate": "2024-12-02",
+    "executionTime": "08:30:00",
+    "endDate": "2024-12-31",
+    "dayOfWeek": 1,
+    "dayOfMonth": null,
+    "month": null,
+    "day": null,
+    "completedCount": 2,
+    "failedCount": 1,
+    "createdAt": "2024-11-25T10:00:00",
+    "updatedAt": "2024-11-25T10:00:00"
+  }
+}
+```
+
+**Lưu ý:** Chỉ user tạo scheduled transaction mới được xem chi tiết
+
+---
+
+### 4. Xóa giao dịch đặt lịch
+**DELETE** `/scheduled-transactions/{id}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Xóa lịch giao dịch thành công"
+}
+```
+
+**Lưu ý:**
+- Chỉ user tạo scheduled transaction mới được xóa
+- Xóa sẽ dừng tất cả các lần thực hiện tiếp theo
+
+---
+
 ## 💬 Feedback APIs
 
 ### 1. Gửi phản hồi/báo lỗi
@@ -1056,6 +1493,311 @@ hoặc
 ```
 
 **Lưu ý:** Chỉ user tạo feedback mới được xem chi tiết
+
+---
+
+## 👨‍💼 Admin APIs
+
+### 1. Admin - Lấy tất cả feedback
+**GET** `/admin/feedbacks`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Query Parameters:**
+- `status` (optional): Lọc theo trạng thái - `PENDING`, `REVIEWED`, `RESOLVED`, `CLOSED`
+- `type` (optional): Lọc theo loại - `FEEDBACK`, `BUG`, `FEATURE`, `OTHER`
+
+**Response:**
+```json
+{
+  "feedbacks": [
+    {
+      "feedbackId": 1,
+      "userId": 1,
+      "userEmail": "user@example.com",
+      "userName": "Nguyễn Văn A",
+      "type": "BUG",
+      "status": "PENDING",
+      "subject": "Lỗi không thể đăng nhập",
+      "message": "Tôi gặp lỗi khi đăng nhập...",
+      "contactEmail": "user@example.com",
+      "adminResponse": null,
+      "createdAt": "2024-01-01T10:00:00",
+      "updatedAt": "2024-01-01T10:00:00",
+      "reviewedAt": null,
+      "resolvedAt": null
+    }
+  ],
+  "total": 1,
+  "pendingCount": 5
+}
+```
+
+**Lưu ý:** Chỉ ADMIN mới có quyền truy cập
+
+---
+
+### 2. Admin - Lấy chi tiết một feedback
+**GET** `/admin/feedbacks/{id}`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "feedback": {
+    "feedbackId": 1,
+    "userId": 1,
+    "userEmail": "user@example.com",
+    "userName": "Nguyễn Văn A",
+    "type": "BUG",
+    "status": "PENDING",
+    "subject": "Lỗi không thể đăng nhập",
+    "message": "Tôi gặp lỗi khi đăng nhập...",
+    "contactEmail": "user@example.com",
+    "adminResponse": null,
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-01T10:00:00"
+  }
+}
+```
+
+---
+
+### 3. Admin - Cập nhật trạng thái feedback
+**PUT** `/admin/feedbacks/{id}/status`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Request Body:**
+```json
+{
+  "status": "REVIEWED"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Cập nhật trạng thái thành công",
+  "feedback": {
+    "feedbackId": 1,
+    "status": "REVIEWED",
+    "reviewedAt": "2024-01-01T11:00:00",
+    ...
+  }
+}
+```
+
+**Lưu ý:**
+- Status có thể là: `PENDING`, `REVIEWED`, `RESOLVED`, `CLOSED`
+- Tự động cập nhật `reviewedAt` khi chuyển sang `REVIEWED`
+- Tự động cập nhật `resolvedAt` khi chuyển sang `RESOLVED`
+
+---
+
+### 4. Admin - Thêm phản hồi cho user
+**PUT** `/admin/feedbacks/{id}/response`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Request Body:**
+```json
+{
+  "adminResponse": "Đã khắc phục lỗi. Vui lòng thử lại."
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Thêm phản hồi thành công",
+  "feedback": {
+    "feedbackId": 1,
+    "adminResponse": "Đã khắc phục lỗi. Vui lòng thử lại.",
+    "status": "REVIEWED",
+    "reviewedAt": "2024-01-01T11:00:00",
+    ...
+  }
+}
+```
+
+**Lưu ý:**
+- Tự động chuyển status sang `REVIEWED` nếu đang là `PENDING`
+- User có thể xem `adminResponse` khi xem chi tiết feedback của mình
+
+---
+
+### 5. Admin - Lấy thống kê feedback
+**GET** `/admin/feedbacks/stats`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "pending": 5,
+  "reviewed": 10,
+  "resolved": 20,
+  "closed": 3,
+  "total": 38
+}
+```
+
+**Lưu ý:** Dùng để hiển thị dashboard cho admin
+
+---
+
+### 6. Admin - Quản lý User
+**GET** `/admin/users`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+[
+  {
+    "userId": 1,
+    "email": "user@example.com",
+    "fullName": "Nguyễn Văn A",
+    "role": "USER",
+    "enabled": true,
+    "locked": false
+  }
+]
+```
+
+---
+
+### 7. Admin - Xem chi tiết user
+**GET** `/admin/users/{id}/detail`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "userId": 1,
+  "email": "user@example.com",
+  "fullName": "Nguyễn Văn A",
+  "role": "USER",
+  "enabled": true,
+  "locked": false,
+  "provider": "local",
+  "createdAt": "2024-01-01T10:00:00"
+}
+```
+
+---
+
+### 8. Admin - Khóa user
+**POST** `/admin/users/{id}/lock`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "userId": 1,
+  "email": "user@example.com",
+  "locked": true
+}
+```
+
+---
+
+### 9. Admin - Mở khóa user
+**POST** `/admin/users/{id}/unlock`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "userId": 1,
+  "email": "user@example.com",
+  "locked": false
+}
+```
+
+---
+
+### 10. Admin - Đổi role user
+**POST** `/admin/users/{id}/role`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Request Body:**
+```json
+{
+  "role": "ADMIN"
+}
+```
+
+**Response:**
+```json
+{
+  "userId": 1,
+  "email": "user@example.com",
+  "role": "ADMIN"
+}
+```
+
+**Lưu ý:** Role có thể là: `USER`, `ADMIN`
+
+---
+
+### 11. Admin - Xem log hành động admin
+**GET** `/admin/users/logs`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "adminId": 1,
+    "adminEmail": "admin@financeapp.com",
+    "targetUserId": 2,
+    "action": "LOCK_USER",
+    "detail": "Khóa user user@example.com",
+    "createdAt": "2024-01-01T10:00:00"
+  }
+]
+```
+
+---
+
+### 12. Admin - Xem login logs của user
+**GET** `/admin/users/{id}/login-logs`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:**
+```json
+[
+  {
+    "logId": 1,
+    "userId": 1,
+    "loginTime": "2024-01-01T10:00:00",
+    "ipAddress": "192.168.1.1",
+    "userAgent": "Mozilla/5.0...",
+    "success": true
+  }
+]
+```
+
+---
+
+### 13. Admin - Xóa user
+**DELETE** `/admin/users/{id}`
+
+**Headers:** `Authorization: Bearer <admin_token>`
+
+**Response:** `204 No Content`
+
+**Lưu ý:** Xóa mềm (soft delete), không xóa dữ liệu thực tế
 
 ---
 
@@ -1551,6 +2293,27 @@ Hỗ trợ các loại tiền tệ: `VND`, `USD`, `EUR`, `JPY`, `GBP`, `CNY`
 ### Transaction Types
 - `1` - Chi tiêu
 - `2` - Thu nhập
+
+### Budget Status
+- `ACTIVE` - Đang hoạt động
+- `COMPLETED` - Đã hoàn thành (hết thời hạn)
+
+### Budget Warning Status
+- `OK` - Bình thường (< 80%)
+- `WARNING` - Cảnh báo (>= 80% và < 100%)
+- `EXCEEDED` - Vượt hạn mức (> 100%)
+
+### Schedule Type
+- `ONCE` - Một lần
+- `DAILY` - Hàng ngày
+- `WEEKLY` - Hàng tuần
+- `MONTHLY` - Hàng tháng
+- `YEARLY` - Hàng năm
+
+### Schedule Status
+- `PENDING` - Đang chờ thực hiện
+- `COMPLETED` - Đã thực hiện thành công
+- `FAILED` - Thất bại (thường do không đủ tiền)
 
 ### Wallet Types
 - `PERSONAL` - Ví cá nhân
