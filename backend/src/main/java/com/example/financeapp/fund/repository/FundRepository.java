@@ -37,7 +37,7 @@ public interface FundRepository extends JpaRepository<Fund, Long> {
         ORDER BY f.createdAt DESC
         """)
     List<Fund> findByOwner_UserIdAndFundTypeOrderByCreatedAtDesc(
-            @Param("userId") Long userId, 
+            @Param("userId") Long userId,
             @Param("fundType") FundType fundType
     );
 
@@ -55,8 +55,8 @@ public interface FundRepository extends JpaRepository<Fund, Long> {
         ORDER BY f.createdAt DESC
         """)
     List<Fund> findByOwner_UserIdAndFundTypeAndStatusOrderByCreatedAtDesc(
-            @Param("userId") Long userId, 
-            @Param("fundType") FundType fundType, 
+            @Param("userId") Long userId,
+            @Param("fundType") FundType fundType,
             @Param("status") FundStatus status
     );
 
@@ -107,5 +107,14 @@ public interface FundRepository extends JpaRepository<Fund, Long> {
         WHERE f.fundId = :fundId
         """)
     java.util.Optional<Fund> findByIdWithRelations(@Param("fundId") Long fundId);
+
+    /**
+     * Lấy tất cả quỹ có targetWalletId = walletId
+     */
+    @Query("""
+        SELECT f FROM Fund f
+        WHERE f.targetWallet.walletId = :walletId
+        """)
+    List<Fund> findByTargetWallet_WalletId(@Param("walletId") Long walletId);
 }
 
