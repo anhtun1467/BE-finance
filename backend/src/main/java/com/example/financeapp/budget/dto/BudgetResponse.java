@@ -24,7 +24,7 @@ public class BudgetResponse {
     private BigDecimal exceededAmount; // Số tiền vượt hạn mức (0 nếu không vượt)
     private Double usagePercentage;
     private String status; // "OK", "WARNING", "EXCEEDED"
-    private String budgetStatus; // "ACTIVE", "COMPLETED" - trạng thái ngân sách theo thời
+    private String budgetStatus; // "ACTIVE", "COMPLETED" - trạng thái ngân sách theo thời gian
     private LocalDate startDate;
     private LocalDate endDate;
     private String note;
