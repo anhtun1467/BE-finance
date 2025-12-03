@@ -75,6 +75,7 @@ public class BudgetResponse {
             response.setUsagePercentage(0.0);
         }
         
+        // Lấy warningThreshold từ budget (mặc định 80% nếu null)
         Double warningThreshold = budget.getWarningThreshold() != null
                 ? budget.getWarningThreshold() : 80.0;
         response.setWarningThreshold(warningThreshold);
