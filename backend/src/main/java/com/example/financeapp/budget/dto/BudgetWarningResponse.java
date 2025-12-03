@@ -231,6 +231,20 @@ public class BudgetWarningResponse {
         this.totalAfterTransaction = totalAfterTransaction;
     }
 
+    public BigDecimal getRemainingAfterTransaction() {
+        return remainingAfterTransaction;
+    }
 
+    public void setRemainingAfterTransaction(BigDecimal remainingAfterTransaction) {
+        this.remainingAfterTransaction = remainingAfterTransaction;
+    }
+
+    public Double getUsagePercentageAfterTransaction() {
+        return usagePercentageAfterTransaction;
+    }
+
+    public void setUsagePercentageAfterTransaction(Double usagePercentageAfterTransaction) {
+        this.usagePercentageAfterTransaction = usagePercentageAfterTransaction;
+    }
 }
 
