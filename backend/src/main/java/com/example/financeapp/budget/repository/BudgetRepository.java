@@ -13,9 +13,7 @@ import java.util.List;
 
 public interface BudgetRepository extends JpaRepository<Budget, Long> {
 
-    /**
-     * Lấy danh sách budgets của user, sắp xếp theo thời gian tạo mới nhất
-     */
+
     List<Budget> findByUser_UserIdOrderByCreatedAtDesc(Long userId);
 
     // ← METHOD MỚI: kiểm tra trùng chính xác 100%
@@ -62,12 +60,7 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
             @Param("newEndDate") LocalDate newEndDate
     );
 
-    /**
-     * Tìm các budget áp dụng cho một giao dịch
-     * - Cùng user, category
-     * - Wallet khớp hoặc budget áp dụng cho tất cả ví (wallet = null)
-     * - Transaction date nằm trong khoảng startDate và endDate
-     */
+
     @Query("""
         SELECT b
         FROM Budget b
