@@ -28,7 +28,7 @@ public class BudgetResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private String note;
-    private Double warningThreshold; // Ngưỡng cảnh báo (%)
+    private Double warningThreshold; // Ngưỡng cảnh báo ngân sách (%)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
