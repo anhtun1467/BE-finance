@@ -28,7 +28,7 @@ public class BudgetResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private String note;
-    private Double warningThreshold; // Ngưỡng cảnh báo ngân sách (%)
+    private Double warningThreshold; // Ngưỡng cảnh báo cho ngân sách (%)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -75,7 +75,6 @@ public class BudgetResponse {
             response.setUsagePercentage(0.0);
         }
         
-        // Lấy warningThreshold từ budget (mặc định 80% nếu null)
         Double warningThreshold = budget.getWarningThreshold() != null
                 ? budget.getWarningThreshold() : 80.0;
         response.setWarningThreshold(warningThreshold);
