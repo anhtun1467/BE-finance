@@ -82,10 +82,10 @@ public class BudgetWarningResponse {
         response.setAmountLimit(budget.getAmountLimit());
         response.setCurrentSpent(currentSpent);
         response.setRemainingAmount(BigDecimal.ZERO);
-        
+
         BigDecimal exceeded = currentSpent.subtract(budget.getAmountLimit());
         response.setExceededAmount(exceeded);
-        
+
         // Tính phần trăm
         if (budget.getAmountLimit().compareTo(BigDecimal.ZERO) > 0) {
             double percentage = currentSpent
@@ -96,13 +96,13 @@ public class BudgetWarningResponse {
         } else {
             response.setUsagePercentage(0.0);
         }
-        
+
         response.setMessage(String.format(
             "⚠️ Ngân sách \"%s\" đã vượt hạn mức %s VND",
             budget.getCategory().getCategoryName(),
             response.getExceededAmount()
         ));
-        
+
         return response;
     }
 
@@ -231,20 +231,6 @@ public class BudgetWarningResponse {
         this.totalAfterTransaction = totalAfterTransaction;
     }
 
-    public BigDecimal getRemainingAfterTransaction() {
-        return remainingAfterTransaction;
-    }
 
-    public void setRemainingAfterTransaction(BigDecimal remainingAfterTransaction) {
-        this.remainingAfterTransaction = remainingAfterTransaction;
-    }
-
-    public Double getUsagePercentageAfterTransaction() {
-        return usagePercentageAfterTransaction;
-    }
-
-    public void setUsagePercentageAfterTransaction(Double usagePercentageAfterTransaction) {
-        this.usagePercentageAfterTransaction = usagePercentageAfterTransaction;
-    }
 }
 
