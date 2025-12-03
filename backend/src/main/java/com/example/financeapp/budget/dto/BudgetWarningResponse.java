@@ -33,7 +33,7 @@ public class BudgetWarningResponse {
      * Tạo cảnh báo khi gần hết ngân sách (>= 80% nhưng chưa vượt)
      */
     public static BudgetWarningResponse createNearlyExhaustedWarning(
-            Budget budget, 
+            Budget budget,
             BigDecimal currentSpent) {
         BudgetWarningResponse response = new BudgetWarningResponse();
         response.setHasWarning(true);
@@ -42,11 +42,11 @@ public class BudgetWarningResponse {
         response.setBudgetName(budget.getCategory().getCategoryName());
         response.setAmountLimit(budget.getAmountLimit());
         response.setCurrentSpent(currentSpent);
-        
+
         BigDecimal remaining = budget.getAmountLimit().subtract(currentSpent);
         response.setRemainingAmount(remaining.max(BigDecimal.ZERO));
         response.setExceededAmount(BigDecimal.ZERO);
-        
+
         // Tính phần trăm
         if (budget.getAmountLimit().compareTo(BigDecimal.ZERO) > 0) {
             double percentage = currentSpent
@@ -57,14 +57,14 @@ public class BudgetWarningResponse {
         } else {
             response.setUsagePercentage(0.0);
         }
-        
+
         response.setMessage(String.format(
             "⚠️ Ngân sách \"%s\" đã sử dụng %.1f%%. Còn lại: %s VND",
             budget.getCategory().getCategoryName(),
             response.getUsagePercentage(),
             response.getRemainingAmount()
         ));
-        
+
         return response;
     }
 
@@ -82,10 +82,10 @@ public class BudgetWarningResponse {
         response.setAmountLimit(budget.getAmountLimit());
         response.setCurrentSpent(currentSpent);
         response.setRemainingAmount(BigDecimal.ZERO);
-        
+
         BigDecimal exceeded = currentSpent.subtract(budget.getAmountLimit());
         response.setExceededAmount(exceeded);
-        
+
         // Tính phần trăm
         if (budget.getAmountLimit().compareTo(BigDecimal.ZERO) > 0) {
             double percentage = currentSpent
@@ -96,13 +96,13 @@ public class BudgetWarningResponse {
         } else {
             response.setUsagePercentage(0.0);
         }
-        
+
         response.setMessage(String.format(
             "⚠️ Ngân sách \"%s\" đã vượt hạn mức %s VND",
             budget.getCategory().getCategoryName(),
             response.getExceededAmount()
         ));
-        
+
         return response;
     }
 

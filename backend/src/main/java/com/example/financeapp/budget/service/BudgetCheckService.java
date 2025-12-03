@@ -11,21 +11,21 @@ import java.time.LocalDate;
  * Service để kiểm tra và đánh dấu giao dịch vượt hạn mức ngân sách
  */
 public interface BudgetCheckService {
-    
+
     /**
      * Kiểm tra và đánh dấu giao dịch nếu vượt hạn mức ngân sách
      * @param transaction Giao dịch cần kiểm tra
      * @return Budget bị vượt (nếu có), null nếu không vượt
      */
     Budget checkAndMarkExceededBudget(Transaction transaction);
-    
+
     /**
      * Kiểm tra và trả về cảnh báo ngân sách (gần hết hoặc vượt hạn mức)
      * @param transaction Giao dịch cần kiểm tra
      * @return BudgetWarningResponse chứa thông tin cảnh báo
      */
     BudgetWarningResponse checkBudgetWarning(Transaction transaction);
-    
+
     /**
      * Preview cảnh báo ngân sách TRƯỚC KHI tạo transaction (cho frontend hiển thị modal)
      * @param userId ID người dùng
@@ -42,7 +42,7 @@ public interface BudgetCheckService {
             BigDecimal amount,
             LocalDate transactionDate
     );
-    
+
     /**
      * Tính số tiền vượt hạn mức (nếu có)
      * @param budget Ngân sách
