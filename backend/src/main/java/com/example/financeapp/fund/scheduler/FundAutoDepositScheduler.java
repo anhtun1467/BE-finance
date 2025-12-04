@@ -4,6 +4,7 @@ import com.example.financeapp.email.EmailService;
 import com.example.financeapp.fund.entity.Fund;
 import com.example.financeapp.fund.repository.FundRepository;
 import com.example.financeapp.fund.service.FundService;
+import com.example.financeapp.notification.service.NotificationService;
 import com.example.financeapp.wallet.entity.Wallet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,9 @@ public class FundAutoDepositScheduler {
 
     @Autowired
     private EmailService emailService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     /**
      * Chạy mỗi phút để kiểm tra và thực hiện tự động nạp tiền
@@ -99,6 +103,18 @@ public class FundAutoDepositScheduler {
                 } catch (Exception emailError) {
                     log.error("Lỗi khi gửi email auto-deposit failed: {}", emailError.getMessage());
                 }
+
+                // Tạo thông báo in-app
+                try {
+                    notificationService.createFundAutoDepositFailedNotification(
+                            fund.getOwner().getUserId(),
+                            fund.getFundId(),
+                            fund.getFundName(),
+                            e.getMessage()
+                    );
+                } catch (Exception notifError) {
+                    log.error("Lỗi khi tạo notification auto-deposit failed: {}", notifError.getMessage());
+                }
             }
         }
 
@@ -163,6 +179,20 @@ public class FundAutoDepositScheduler {
             log.error("Lỗi khi gửi email auto-deposit success: {}", e.getMessage());
         }
 
+        // Tạo thông báo in-app
+        try {
+            notificationService.createFundAutoDepositSuccessNotification(
+                    fund.getOwner().getUserId(),
+                    fund.getFundId(),
+                    fund.getFundName(),
+                    String.format("%,.0f", amount),
+                    String.format("%,.0f", newBalance),
+                    fund.getTargetWallet().getCurrencyCode()
+            );
+        } catch (Exception e) {
+            log.error("Lỗi khi tạo notification auto-deposit success: {}", e.getMessage());
+        }
+
         // Kiểm tra nếu đạt mục tiêu thì gửi email chúc mừng
         if (fund.getTargetAmount() != null && newBalance.compareTo(fund.getTargetAmount()) >= 0) {
             try {
@@ -177,6 +207,19 @@ public class FundAutoDepositScheduler {
                 log.info("Quỹ '{}' (ID: {}) đã đạt mục tiêu!", fund.getFundName(), fund.getFundId());
             } catch (Exception e) {
                 log.error("Lỗi khi gửi email fund completed: {}", e.getMessage());
+            }
+
+            // Tạo thông báo in-app
+            try {
+                notificationService.createFundCompletedNotification(
+                        fund.getOwner().getUserId(),
+                        fund.getFundId(),
+                        fund.getFundName(),
+                        String.format("%,.0f", fund.getTargetAmount()),
+                        fund.getTargetWallet().getCurrencyCode()
+                );
+            } catch (Exception e) {
+                log.error("Lỗi khi tạo notification fund completed: {}", e.getMessage());
             }
         }
     }
