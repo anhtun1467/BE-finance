@@ -750,6 +750,9 @@ public class WalletServiceImpl implements WalletService {
         int targetTransactionCountBefore = (int) transactionRepository.countByWallet_WalletId(targetWalletId);
         boolean wasSourceDefault = sourceWallet.isDefault();
 
+        // Lưu currency gốc của target wallet TRƯỚC KHI thay đổi (quan trọng!)
+        String originalTargetCurrency = targetWallet.getCurrencyCode();
+
         // Chuyển đổi số dư source wallet sang target currency
         BigDecimal sourceBalanceConverted = sourceBalance;
         if (!sourceCurrency.equals(targetCurrency)) {
@@ -762,10 +765,10 @@ public class WalletServiceImpl implements WalletService {
 
         // Chuyển đổi số dư target wallet sang target currency (nếu cần)
         BigDecimal targetBalanceConverted = targetBalanceBefore;
-        if (!targetWallet.getCurrencyCode().equals(targetCurrency)) {
+        if (!originalTargetCurrency.equals(targetCurrency)) {
             targetBalanceConverted = exchangeRateService.convertAmount(
                     targetBalanceBefore,
-                    targetWallet.getCurrencyCode(),
+                    originalTargetCurrency,
                     targetCurrency
             );
         }
@@ -836,6 +839,62 @@ public class WalletServiceImpl implements WalletService {
             tx.setWallet(targetWallet);
             tx.setMergeDate(mergeDate);
             transactionRepository.save(tx);
+        }
+
+        // Chuyển đổi tất cả transactions của target wallet nếu currency khác targetCurrency
+        // originalTargetCurrency đã được lấy ở trên (trước khi cập nhật wallet)
+
+        if (!originalTargetCurrency.equals(targetCurrency)) {
+            List<Transaction> targetTransactions = transactionRepository.findByWallet_WalletId(targetWalletId);
+
+            for (Transaction tx : targetTransactions) {
+                // Xác định currency gốc của transaction
+                // Nếu transaction đã có originalCurrency (từ lần chuyển đổi trước), dùng nó
+                // Nếu chưa có, dùng currency hiện tại của target wallet
+                String txOriginalCurrency = tx.getOriginalCurrency() != null
+                        ? tx.getOriginalCurrency()
+                        : originalTargetCurrency;
+
+                // Xác định amount gốc của transaction
+                // Nếu transaction đã có originalAmount (từ lần chuyển đổi trước), dùng nó
+                // Nếu chưa có, dùng amount hiện tại
+                BigDecimal txOriginalAmount = tx.getOriginalAmount() != null
+                        ? tx.getOriginalAmount()
+                        : tx.getAmount();
+
+                // Lưu thông tin gốc nếu chưa có
+                if (tx.getOriginalAmount() == null) {
+                    tx.setOriginalAmount(txOriginalAmount);
+                    tx.setOriginalCurrency(txOriginalCurrency);
+                }
+
+                // Nếu currency gốc khác với target currency, cần chuyển đổi
+                if (!txOriginalCurrency.equals(targetCurrency)) {
+                    // Chuyển đổi từ currency gốc sang target currency
+                    BigDecimal convertedAmount = exchangeRateService.convertAmount(
+                            txOriginalAmount,
+                            txOriginalCurrency,
+                            targetCurrency
+                    );
+                    tx.setAmount(convertedAmount);
+
+                    // Lưu exchange rate từ currency gốc sang target currency
+                    BigDecimal rate = exchangeRateService.getExchangeRate(
+                            txOriginalCurrency,
+                            targetCurrency
+                    );
+                    tx.setExchangeRate(rate);
+                } else {
+                    // Nếu currency gốc trùng với target currency, không cần chuyển đổi
+                    // Nhưng vẫn cần đảm bảo amount = originalAmount
+                    tx.setAmount(txOriginalAmount);
+                    tx.setExchangeRate(BigDecimal.ONE);
+                }
+
+                // Đánh dấu transaction này cũng bị ảnh hưởng bởi merge
+                tx.setMergeDate(mergeDate);
+                transactionRepository.save(tx);
+            }
         }
 
         // Chuyển tất cả members từ source sang target (nếu chưa có)
