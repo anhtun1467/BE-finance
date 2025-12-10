@@ -4,9 +4,12 @@ import com.example.financeapp.email.EmailService;
 import com.example.financeapp.notification.service.NotificationService;
 import com.example.financeapp.wallet.repository.WalletTransferRepository;
 import com.example.financeapp.fund.entity.Fund;
+import com.example.financeapp.fund.entity.FundTransaction;
+import com.example.financeapp.fund.entity.FundTransactionStatus;
+import com.example.financeapp.fund.entity.FundTransactionType;
 import com.example.financeapp.fund.repository.FundRepository;
+import com.example.financeapp.fund.repository.FundTransactionRepository;
 import com.example.financeapp.fund.service.FundService;
-import com.example.financeapp.notification.service.NotificationService;
 import com.example.financeapp.wallet.entity.Wallet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +48,9 @@ public class FundAutoDepositScheduler {
     @Autowired
     private WalletTransferRepository walletTransferRepository;
 
+    @Autowired
+    private FundTransactionRepository fundTransactionRepository;
+
     /**
      * Chạy mỗi phút để kiểm tra và thực hiện tự động nạp tiền
      * Cron: 0 * * * * * (mỗi phút)
@@ -69,7 +75,12 @@ public class FundAutoDepositScheduler {
 
         // 2. Tìm quỹ tự động nạp WEEKLY
         int dayOfWeek = today.getDayOfWeek().getValue(); // 1=Monday, 7=Sunday
-        List<Fund> weeklyDeposits = fundRepository.findWeeklyAutoDeposits(dayOfWeek, startTime, currentTime, currentDateTime);
+        // Tính toán start và end của tuần (thứ 2 đầu tuần đến chủ nhật cuối tuần)
+        java.time.DayOfWeek firstDayOfWeek = today.getDayOfWeek();
+        int daysFromMonday = (firstDayOfWeek.getValue() + 6) % 7; // 0=Monday, 6=Sunday
+        LocalDateTime startOfWeek = currentDateTime.minusDays(daysFromMonday).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime endOfWeek = startOfWeek.plusDays(6).withHour(23).withMinute(59).withSecond(59);
+        List<Fund> weeklyDeposits = fundRepository.findWeeklyAutoDeposits(dayOfWeek, startTime, currentTime, currentDateTime, startOfWeek, endOfWeek);
         fundsToDeposit.addAll(weeklyDeposits);
         log.debug("Tìm thấy {} quỹ cần tự động nạp WEEKLY (thứ {})", weeklyDeposits.size(), dayOfWeek);
 
@@ -99,21 +110,33 @@ public class FundAutoDepositScheduler {
                 log.error("Lỗi khi tự động nạp tiền cho quỹ ID {}: {}",
                         fund.getFundId(), e.getMessage(), e);
 
-                // Tạo notification trong hệ thống (chuông topbar)
                 try {
-                        String title = "Tự động nạp thất bại: " + fund.getFundName();
-                        String message = "Nạp tự động vào quỹ '" + fund.getFundName() + "' thất bại: " + e.getMessage()
-                            + ". Vui lòng nạp thêm tiền vào ví nguồn để tiếp tục giao dịch tự động.";
-                    notificationService.createUserNotification(
-                            fund.getOwner().getUserId(),
-                            com.example.financeapp.notification.entity.Notification.NotificationType.SYSTEM_ANNOUNCEMENT,
-                            title,
-                            message,
-                            fund.getFundId(),
-                            "FUND_AUTO_DEPOSIT_FAILED"
-                    );
-                } catch (Exception notifErr) {
-                    log.error("Lỗi khi tạo notification auto-deposit failed: {}", notifErr.getMessage());
+                    var sourceWallet = fund.getSourceWallet();
+                    if (sourceWallet != null && fund.getAutoDepositAmount() != null) {
+                        java.math.BigDecimal shortage = fund.getAutoDepositAmount().subtract(
+                                sourceWallet.getBalance() != null ? sourceWallet.getBalance() : java.math.BigDecimal.ZERO);
+                        if (shortage.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                            fund.setPendingAutoTopupAmount(shortage);
+                            fund.setPendingAutoTopupAt(LocalDateTime.now());
+                            fundRepository.save(fund);
+                        }
+                    }
+                } catch (Exception ignore) {
+                    // ignore pending set errors
+                }
+
+                // Lưu lịch sử giao dịch thất bại
+                try {
+                    FundTransaction tx = new FundTransaction();
+                    tx.setFund(fund);
+                    tx.setAmount(fund.getAutoDepositAmount() != null ? fund.getAutoDepositAmount() : BigDecimal.ZERO);
+                    tx.setType(FundTransactionType.AUTO_DEPOSIT);
+                    tx.setStatus(FundTransactionStatus.FAILED);
+                    tx.setMessage(e.getMessage());
+                    tx.setPerformedBy(fund.getOwner());
+                    fundTransactionRepository.save(tx);
+                } catch (Exception txErr) {
+                    log.error("Không thể ghi lịch sử auto-deposit thất bại: {}", txErr.getMessage());
                 }
 
                 // Gửi email cảnh báo thất bại
@@ -202,7 +225,13 @@ public class FundAutoDepositScheduler {
         }
 
         // Thực hiện nạp tiền
-        var result = fundService.depositToFund(fund.getOwner().getUserId(), fund.getFundId(), amount);
+        var result = fundService.depositToFund(
+                fund.getOwner().getUserId(),
+                fund.getFundId(),
+                amount,
+                com.example.financeapp.fund.entity.FundTransactionType.AUTO_DEPOSIT,
+                "Tự động nạp tiền theo lịch"
+        );
 
         // Lấy số dư mới trong quỹ sau khi nạp
         BigDecimal newBalance = result.getCurrentAmount();
