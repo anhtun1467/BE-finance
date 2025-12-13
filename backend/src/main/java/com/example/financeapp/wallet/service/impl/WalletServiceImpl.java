@@ -42,6 +42,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -213,14 +214,29 @@ public class WalletServiceImpl implements WalletService {
             throw new RuntimeException("Không thể chia sẻ ví với chính bạn");
         }
 
-        if (walletMemberRepository.existsByWallet_WalletIdAndUser_UserId(walletId, memberUser.getUserId())) {
-            throw new RuntimeException("Người dùng này đã là thành viên của ví");
-        }
+        // Kiểm tra xem member đã tồn tại chưa (bao gồm cả đã bị xóa mềm)
+        Optional<WalletMember> existingMemberOpt = walletMemberRepository.findByWallet_WalletIdAndUser_UserId(walletId, memberUser.getUserId());
 
-        // Luôn tạo với role VIEW (Viewer) khi mời lần đầu, cả ví cá nhân và ví nhóm
-        WalletRole defaultRole = WalletRole.VIEW;
-        WalletMember newMember = new WalletMember(wallet, memberUser, defaultRole);
-        WalletMember saved = walletMemberRepository.save(newMember);
+        WalletMember saved;
+        if (existingMemberOpt.isPresent()) {
+            WalletMember existingMember = existingMemberOpt.get();
+            // Nếu member đã tồn tại và chưa bị xóa mềm
+            if (!existingMember.isDeleted()) {
+                throw new RuntimeException("Người dùng này đã là thành viên của ví");
+            }
+            // Nếu member đã bị xóa mềm, restore lại
+            existingMember.setDeleted(false);
+            existingMember.setDeletedAt(null);
+            // Reset role về VIEW khi restore
+            existingMember.setRole(WalletRole.VIEW);
+            saved = walletMemberRepository.save(existingMember);
+        } else {
+            // Tạo member mới
+            // Luôn tạo với role VIEW (Viewer) khi mời lần đầu, cả ví cá nhân và ví nhóm
+            WalletRole defaultRole = WalletRole.VIEW;
+            WalletMember newMember = new WalletMember(wallet, memberUser, defaultRole);
+            saved = walletMemberRepository.save(newMember);
+        }
 
         // Tạo thông báo cho người được mời - luôn là "Bạn có thể xem ví này"
         try {
@@ -272,6 +288,11 @@ public class WalletServiceImpl implements WalletService {
                 .findByWallet_WalletIdAndUser_UserId(walletId, memberUserId)
                 .orElseThrow(() -> new RuntimeException("Thành viên không tồn tại trong ví"));
 
+        // Kiểm tra nếu member đã bị xóa mềm
+        if (member.isDeleted()) {
+            throw new RuntimeException("Thành viên này đã bị xóa khỏi ví");
+        }
+
         // Lấy thông tin trước khi xóa để tạo notification
         Wallet wallet = member.getWallet();
         User removedUser = member.getUser();
@@ -291,8 +312,11 @@ public class WalletServiceImpl implements WalletService {
                     : (owner.getEmail() != null ? owner.getEmail() : "chủ ví");
         }
 
-        // Xóa member
-        walletMemberRepository.delete(member);
+        // XÓA MỀM: Đánh dấu deleted = true thay vì xóa cứng
+        // Điều này giúp giữ lại lịch sử giao dịch liên quan đến thành viên này
+        member.setDeleted(true);
+        member.setDeletedAt(LocalDateTime.now());
+        walletMemberRepository.save(member);
 
         // Tạo thông báo cho thành viên bị xóa
         if (removedUser != null) {
@@ -742,6 +766,11 @@ public class WalletServiceImpl implements WalletService {
                 .findByWallet_WalletIdAndUser_UserId(walletId, userId)
                 .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên ví này"));
 
+        // Kiểm tra nếu member đã bị xóa mềm
+        if (member.isDeleted()) {
+            throw new RuntimeException("Bạn đã rời khỏi ví này rồi");
+        }
+
         if (member.getRole() == WalletRole.OWNER) {
             throw new RuntimeException("Chủ sở hữu không thể tự rời ví");
         }
@@ -758,8 +787,11 @@ public class WalletServiceImpl implements WalletService {
                 .findFirst()
                 .orElse(null);
 
-        // Xóa member
-        walletMemberRepository.delete(member);
+        // XÓA MỀM: Đánh dấu deleted = true thay vì xóa cứng
+        // Điều này giúp giữ lại lịch sử giao dịch liên quan đến thành viên này
+        member.setDeleted(true);
+        member.setDeletedAt(LocalDateTime.now());
+        walletMemberRepository.save(member);
 
         // Tạo thông báo cho chủ ví
         if (ownerMember != null && ownerMember.getUser() != null) {
