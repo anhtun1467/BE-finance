@@ -67,6 +67,7 @@ public class Notification {
         WALLET_ROLE_UPDATED,    // User nhận: quyền trong ví đã được nâng cấp (VIEW -> MEMBER)
         WALLET_MEMBER_LEFT,     // Owner nhận: thành viên đã rời khỏi ví
         WALLET_MEMBER_REMOVED,  // User nhận: bị xóa khỏi ví bởi chủ ví
+        WALLET_DELETED,         // User nhận: ví đã bị xóa bởi chủ ví
         SYSTEM_ANNOUNCEMENT     // Thông báo hệ thống
     }
 

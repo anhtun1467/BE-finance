@@ -1299,15 +1299,50 @@ public class WalletServiceImpl implements WalletService {
             throw new RuntimeException("Không thể xóa ví mặc định.");
         }
 
-        // 5. Lưu thông tin thành viên trước khi xóa (để trả về response)
+        // 5. Lưu thông tin thành viên trước khi xóa (để trả về response và gửi thông báo)
         List<WalletMember> members = walletMemberRepository.findByWallet_WalletId(walletId);
         int membersRemoved = members.size();
+
+        // Lấy thông tin chủ ví để hiển thị trong thông báo
+        User owner = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chủ ví"));
+        String ownerName = owner.getFullName() != null && !owner.getFullName().trim().isEmpty()
+                ? owner.getFullName()
+                : (owner.getEmail() != null ? owner.getEmail() : "chủ ví");
+        String walletName = wallet.getWalletName() != null ? wallet.getWalletName() : "ví";
 
         // 6. XÓA MỀM: Chỉ đánh dấu deleted = true, không xóa khỏi database
         wallet.setDeleted(true);
         walletRepository.save(wallet);
 
-        // 7. Trả về thông tin
+        // 7. Gửi thông báo cho tất cả thành viên (trừ chủ ví)
+        for (WalletMember member : members) {
+            // Bỏ qua chủ ví (không gửi thông báo cho chính mình)
+            if (member.getUser().getUserId().equals(userId)) {
+                continue;
+            }
+
+            // Bỏ qua thành viên đã bị xóa mềm
+            if (member.isDeleted()) {
+                continue;
+            }
+
+            try {
+                notificationService.createUserNotification(
+                        member.getUser().getUserId(),
+                        Notification.NotificationType.WALLET_DELETED,
+                        "Ví đã bị xóa",
+                        String.format("Ví \"%s\" đã bị xóa bởi chủ ví %s.", walletName, ownerName),
+                        walletId,
+                        "WALLET"
+                );
+            } catch (Exception e) {
+                // Log lỗi nhưng không throw để không ảnh hưởng đến việc xóa ví
+                System.err.println("Lỗi khi tạo thông báo cho thành viên khi xóa ví: " + e.getMessage());
+            }
+        }
+
+        // 8. Trả về thông tin
         DeleteWalletResponse response = new DeleteWalletResponse(
                 wallet.getWalletId(),
                 wallet.getWalletName(),
