@@ -1263,26 +1263,42 @@ public class WalletServiceImpl implements WalletService {
 
         WalletMergeHistory savedHistory = walletMergeHistoryRepository.save(history);
 
-        // Gửi thông báo cho tất cả thành viên của cả 2 ví (trước khi gộp)
+        // Gửi thông báo cho các member và viewer (không gửi cho owner)
         try {
-            // Lấy danh sách member (bao gồm cả owner) của source và target trước khi gộp
+            // Lấy danh sách member của source và target trước khi gộp
             List<WalletMember> allSourceMembers = sourceMembers;
             List<WalletMember> allTargetMembers = walletMemberRepository.findByWallet_WalletId(targetWalletId);
 
-            // Gộp và loại bỏ trùng lặp theo userId
+            // Gộp và loại bỏ trùng lặp theo userId, chỉ lấy MEMBER và VIEW (không lấy OWNER)
             List<Long> notifiedUserIds = new ArrayList<>();
 
             for (WalletMember member : allSourceMembers) {
                 Long memberUserId = member.getUser().getUserId();
-                if (!notifiedUserIds.contains(memberUserId)) {
-                    notifiedUserIds.add(memberUserId);
+                // Loại trừ owner (người thực hiện gộp ví)
+                if (memberUserId.equals(userId)) {
+                    continue;
+                }
+                // Chỉ gửi cho MEMBER hoặc VIEW (viewer)
+                WalletRole role = member.getRole();
+                if (role == WalletRole.MEMBER || role == WalletRole.VIEW) {
+                    if (!notifiedUserIds.contains(memberUserId)) {
+                        notifiedUserIds.add(memberUserId);
+                    }
                 }
             }
 
             for (WalletMember member : allTargetMembers) {
                 Long memberUserId = member.getUser().getUserId();
-                if (!notifiedUserIds.contains(memberUserId)) {
-                    notifiedUserIds.add(memberUserId);
+                // Loại trừ owner (người thực hiện gộp ví)
+                if (memberUserId.equals(userId)) {
+                    continue;
+                }
+                // Chỉ gửi cho MEMBER hoặc VIEW (viewer)
+                WalletRole role = member.getRole();
+                if (role == WalletRole.MEMBER || role == WalletRole.VIEW) {
+                    if (!notifiedUserIds.contains(memberUserId)) {
+                        notifiedUserIds.add(memberUserId);
+                    }
                 }
             }
 
