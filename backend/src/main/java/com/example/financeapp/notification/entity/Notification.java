@@ -69,6 +69,8 @@ public class Notification {
         WALLET_MEMBER_REMOVED,  // User nhận: bị xóa khỏi ví bởi chủ ví
         WALLET_DELETED,         // User nhận: ví đã bị xóa bởi chủ ví
         WALLET_MERGED,          // User nhận: ví của mình đã được gộp với ví khác
+        SCHEDULED_TRANSACTION_FAILED,   // User nhận: giao dịch tự động thất bại (không đủ số dư)
+        SCHEDULED_TRANSACTION_SUCCESS,  // User nhận: giao dịch tự động thành công
         SYSTEM_ANNOUNCEMENT     // Thông báo hệ thống
     }
 
