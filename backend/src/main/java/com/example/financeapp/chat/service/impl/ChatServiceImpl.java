@@ -2,6 +2,8 @@ package com.example.financeapp.chat.service.impl;
 
 import com.example.financeapp.chat.dto.ChatRequest;
 import com.example.financeapp.chat.dto.ChatResponse;
+import com.example.financeapp.chat.entity.ChatMessage;
+import com.example.financeapp.chat.repository.ChatMessageRepository;
 import com.example.financeapp.chat.service.ChatService;
 import com.example.financeapp.transaction.entity.Transaction;
 import com.example.financeapp.transaction.service.TransactionService;
@@ -62,6 +64,7 @@ public class ChatServiceImpl implements ChatService {
     private final WalletService walletService;
     private final TransactionService transactionService;
     private final UserRepository userRepository;
+    private final ChatMessageRepository chatMessageRepository;
     
     @Value("${app.gemini.api-key:}")
     private String geminiApiKey;
@@ -148,13 +151,15 @@ public class ChatServiceImpl implements ChatService {
             ObjectMapper objectMapper,
             WalletService walletService,
             TransactionService transactionService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            ChatMessageRepository chatMessageRepository
     ) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
         this.walletService = walletService;
         this.transactionService = transactionService;
         this.userRepository = userRepository;
+        this.chatMessageRepository = chatMessageRepository;
     }
     
     /**
@@ -316,6 +321,9 @@ public class ChatServiceImpl implements ChatService {
     /**
      * Tạo Body JSON đúng chuẩn DTO với conversation history
      * Format: { "contents": [{ "role": "user"/"model", "parts": [{"text": "..."}] }] }
+     * 
+     * Lưu ý: System prompt chỉ được thêm vào đầu conversation (khi history rỗng),
+     * không thêm vào mỗi lần gọi để tránh reset context.
      */
     private Map<String, Object> createRequestBody(String systemPrompt, List<ChatRequest.ChatMessage> history, String currentMessage) {
         Map<String, Object> requestBody = new HashMap<>();
@@ -323,8 +331,11 @@ public class ChatServiceImpl implements ChatService {
         // Tạo contents array
         List<Map<String, Object>> contents = new ArrayList<>();
         
-        // Thêm system prompt vào đầu conversation (chỉ một lần)
-        if (systemPrompt != null && !systemPrompt.isEmpty()) {
+        // Thêm system prompt vào đầu conversation CHỈ KHI history rỗng (lần đầu tiên)
+        // Nếu đã có history, nghĩa là đây không phải lần đầu, không cần thêm system prompt nữa
+        boolean isFirstMessage = (history == null || history.isEmpty());
+        
+        if (isFirstMessage && systemPrompt != null && !systemPrompt.isEmpty()) {
             Map<String, Object> systemContent = new HashMap<>();
             systemContent.put("role", "user");
             List<Map<String, String>> systemParts = new ArrayList<>();
@@ -334,7 +345,7 @@ public class ChatServiceImpl implements ChatService {
             systemContent.put("parts", systemParts);
             contents.add(systemContent);
             
-            // Thêm response rỗng từ model để đánh dấu system prompt đã được xử lý
+            // Thêm response từ model để đánh dấu system prompt đã được xử lý
             Map<String, Object> modelResponse = new HashMap<>();
             modelResponse.put("role", "model");
             List<Map<String, String>> modelParts = new ArrayList<>();
@@ -345,39 +356,50 @@ public class ChatServiceImpl implements ChatService {
             contents.add(modelResponse);
         }
         
-        // Thêm conversation history nếu có
+        // Thêm conversation history nếu có (quan trọng: giữ nguyên context)
         if (history != null && !history.isEmpty()) {
             for (ChatRequest.ChatMessage msg : history) {
                 Map<String, Object> historyContent = new HashMap<>();
-                historyContent.put("role", msg.getRole().equals("user") ? "user" : "model");
+                // Đảm bảo role đúng format: "user" hoặc "model"
+                String role = msg.getRole();
+                if (!"user".equals(role) && !"model".equals(role)) {
+                    // Nếu role không đúng, tự động convert
+                    role = "user".equals(role.toLowerCase()) ? "user" : "model";
+                }
+                historyContent.put("role", role);
                 
                 List<Map<String, String>> parts = new ArrayList<>();
                 Map<String, String> part = new HashMap<>();
-                part.put("text", msg.getContent());
+                part.put("text", msg.getContent() != null ? msg.getContent() : "");
                 parts.add(part);
                 historyContent.put("parts", parts);
                 contents.add(historyContent);
             }
         }
         
-        // Thêm message hiện tại
+        // Thêm message hiện tại của người dùng
         Map<String, Object> currentContent = new HashMap<>();
         currentContent.put("role", "user");
         List<Map<String, String>> currentParts = new ArrayList<>();
         Map<String, String> currentPart = new HashMap<>();
-        currentPart.put("text", currentMessage);
+        currentPart.put("text", currentMessage != null ? currentMessage : "");
         currentParts.add(currentPart);
         currentContent.put("parts", currentParts);
         contents.add(currentContent);
         
         requestBody.put("contents", contents);
         
+        // Log để debug (chỉ log khi cần)
+        if (logger.isDebugEnabled()) {
+            logger.debug("Request body contents count: {}, isFirstMessage: {}", contents.size(), isFirstMessage);
+        }
+        
         // Cấu hình generation
         Map<String, Object> generationConfig = new HashMap<>();
         generationConfig.put("temperature", 0.7);
         generationConfig.put("topK", 40);
         generationConfig.put("topP", 0.95);
-        generationConfig.put("maxOutputTokens", 1024);
+        generationConfig.put("maxOutputTokens", 4096); // Tăng từ 1024 lên 4096 để hỗ trợ câu trả lời dài
         requestBody.put("generationConfig", generationConfig);
         
         return requestBody;
@@ -457,9 +479,9 @@ public class ChatServiceImpl implements ChatService {
      */
     public String getChatResponse(String systemPrompt, List<ChatRequest.ChatMessage> history, String currentMessage) {
         // Kiểm tra API key
-        if (geminiApiKey == null || geminiApiKey.isEmpty()) {
-            logger.error("Gemini API key chưa được cấu hình");
-            throw new RuntimeException("API key chưa được cấu hình");
+        if (geminiApiKey == null || geminiApiKey.isEmpty() || geminiApiKey.equals("YOUR_NEW_GEMINI_API_KEY_HERE")) {
+            logger.error("Gemini API key chưa được cấu hình hoặc chưa được thay thế");
+            throw new RuntimeException("API key chưa được cấu hình. Vui lòng cập nhật API key trong application.properties. Xem hướng dẫn tại: GEMINI_API_KEY_SETUP.md");
         }
         
         // List models khả dụng (để debug - chỉ log một lần)
@@ -532,19 +554,33 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public ChatResponse chat(Long userId, ChatRequest request) {
         try {
-            // Bước 1: Lấy context data của user
+            // Bước 1: Lấy user từ database
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+            
+            // Bước 2: Lấy context data của user
             String userContext = getUserContextData(userId);
             
-            // Bước 2: Tạo System Prompt với context data
+            // Bước 3: Tạo System Prompt với context data
             String systemPrompt = buildSystemPrompt(userContext);
             
-            // Bước 3: Lấy message hiện tại và history
+            // Bước 4: Lấy message hiện tại và history
             String currentMessage = request.getMessage();
             List<ChatRequest.ChatMessage> history = request.getHistory();
             
-            // Bước 4: Gọi hàm getChatResponse để lấy câu trả lời từ AI
+            // Bước 5: Lưu tin nhắn của user vào database
+            ChatMessage userMessage = new ChatMessage(user, ChatMessage.MessageRole.USER, currentMessage);
+            chatMessageRepository.save(userMessage);
+            logger.debug("Saved user message to database for user: {}", userId);
+            
+            // Bước 6: Gọi hàm getChatResponse để lấy câu trả lời từ AI
             // System prompt sẽ được thêm vào đầu conversation (chỉ một lần)
             String aiResponse = getChatResponse(systemPrompt, history, currentMessage);
+            
+            // Bước 7: Lưu tin nhắn của AI vào database
+            ChatMessage aiMessage = new ChatMessage(user, ChatMessage.MessageRole.MODEL, aiResponse);
+            chatMessageRepository.save(aiMessage);
+            logger.debug("Saved AI message to database for user: {}", userId);
             
             return new ChatResponse(aiResponse, true, null);
             
@@ -555,6 +591,47 @@ public class ChatServiceImpl implements ChatService {
                 false,
                 e.getMessage()
             );
+        }
+    }
+    
+    /**
+     * Lấy lịch sử chat của user từ database
+     * @param userId ID của user
+     * @return Danh sách tin nhắn (dạng ChatRequest.ChatMessage để frontend dùng)
+     */
+    public List<ChatRequest.ChatMessage> getChatHistory(Long userId) {
+        try {
+            List<ChatMessage> dbMessages = chatMessageRepository.findByUserIdOrderByCreatedAtAsc(userId);
+            
+            // Convert từ ChatMessage entity sang ChatRequest.ChatMessage DTO
+            List<ChatRequest.ChatMessage> history = new ArrayList<>();
+            for (ChatMessage msg : dbMessages) {
+                ChatRequest.ChatMessage chatMsg = new ChatRequest.ChatMessage();
+                chatMsg.setRole(msg.getRole() == ChatMessage.MessageRole.USER ? "user" : "model");
+                chatMsg.setContent(msg.getContent());
+                history.add(chatMsg);
+            }
+            
+            logger.debug("Loaded {} chat messages from database for user: {}", history.size(), userId);
+            return history;
+            
+        } catch (Exception e) {
+            logger.error("Error loading chat history for user {}: {}", userId, e.getMessage(), e);
+            return new ArrayList<>(); // Trả về list rỗng nếu có lỗi
+        }
+    }
+    
+    /**
+     * Xóa toàn bộ lịch sử chat của user
+     * @param userId ID của user
+     */
+    public void clearChatHistory(Long userId) {
+        try {
+            chatMessageRepository.deleteByUser_UserId(userId);
+            logger.info("Cleared chat history for user: {}", userId);
+        } catch (Exception e) {
+            logger.error("Error clearing chat history for user {}: {}", userId, e.getMessage(), e);
+            throw new RuntimeException("Không thể xóa lịch sử chat: " + e.getMessage());
         }
     }
 }
