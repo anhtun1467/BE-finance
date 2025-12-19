@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.List;
 
@@ -305,17 +306,49 @@ public class TransactionServiceImpl implements TransactionService {
             throw new RuntimeException("Danh mục không thuộc loại giao dịch này");
         }
 
-        // 5. Cập nhật các field được phép sửa
+        // 5. Lấy wallet với PESSIMISTIC LOCK để đảm bảo số dư chính xác khi cập nhật
+        Wallet wallet = walletRepository.findByIdWithLock(transaction.getWallet().getWalletId())
+                .orElseThrow(() -> new RuntimeException("Ví không tồn tại"));
+
+        // 6. Tính chênh lệch số tiền và cập nhật số dư ví
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Số tiền phải lớn hơn 0");
+        }
+
+        BigDecimal oldAmount = transaction.getAmount();
+        BigDecimal newAmount = request.getAmount();
+        BigDecimal delta = newAmount.subtract(oldAmount); // dương: tăng số tiền giao dịch, âm: giảm
+
+        String typeName = transaction.getTransactionType().getTypeName();
+        BigDecimal newBalance;
+        if ("Chi tiêu".equals(typeName)) {
+            // Chi tiêu: số dư mới = hiện tại - delta (delta dương => trừ thêm, delta âm => hoàn lại)
+            newBalance = wallet.getBalance().subtract(delta);
+        } else {
+            // Thu nhập: số dư mới = hiện tại + delta (delta dương => cộng thêm, delta âm => trừ bớt)
+            newBalance = wallet.getBalance().add(delta);
+        }
+
+        if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new RuntimeException("Số dư không đủ sau khi cập nhật giao dịch");
+        }
+
+        wallet.setBalance(newBalance);
+        walletRepository.save(wallet);
+
+        // 7. Cập nhật transaction fields
         transaction.setCategory(category);
         transaction.setNote(request.getNote());
         transaction.setImageUrl(request.getImageUrl());
+        transaction.setAmount(newAmount);
+        transaction.setIsEdited(true);
 
-        // 6. Kiểm tra lại budget nếu là giao dịch chi tiêu (vì có thể đã thay đổi category hoặc amount)
-        if ("Chi tiêu".equals(transaction.getTransactionType().getTypeName())) {
+        // 8. Kiểm tra lại budget nếu là giao dịch chi tiêu (vì có thể đã thay đổi category hoặc amount)
+        if ("Chi tiêu".equals(typeName)) {
             budgetCheckService.checkAndMarkExceededBudget(transaction);
         }
 
-        // 7. Lưu lại (updatedAt sẽ tự động cập nhật nhờ @PreUpdate)
+        // 9. Lưu lại (updatedAt sẽ tự động cập nhật nhờ @PreUpdate)
         return transactionRepository.save(transaction);
     }
 
@@ -357,8 +390,10 @@ public class TransactionServiceImpl implements TransactionService {
         wallet.setBalance(newBalance);
         walletRepository.save(wallet);
 
-        // 7. Xóa transaction
-        transactionRepository.delete(transaction);
+        // 7. Đánh dấu xoá mềm
+        transaction.setIsDeleted(true);
+        transaction.setDeletedAt(LocalDateTime.now());
+        transactionRepository.save(transaction);
     }
 
     @Override

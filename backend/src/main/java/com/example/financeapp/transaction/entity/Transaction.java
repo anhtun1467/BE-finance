@@ -7,10 +7,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import org.hibernate.annotations.Where;
 
 @Entity
 @Table(name = "transactions")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Where(clause = "is_deleted = false")
 public class Transaction {
 
     @Id
@@ -61,13 +63,13 @@ public class Transaction {
     private LocalDateTime mergeDate; // Ngày gộp ví (để biết transaction từ merge)
 
     // ============ FIELDS CHO BUDGET EXCEEDED ============
-    
+
     @Column(name = "is_exceeded_budget")
     private Boolean isExceededBudget = false; // Đánh dấu giao dịch vượt hạn mức ngân sách
-    
+
     @Column(name = "exceeded_budget_amount", precision = 20, scale = 8)
     private BigDecimal exceededBudgetAmount = BigDecimal.ZERO; // Số tiền vượt hạn mức (nếu có)
-    
+
     @Column(name = "exceeded_budget_id")
     private Long exceededBudgetId; // ID của budget bị vượt (nếu có)
 
@@ -76,6 +78,17 @@ public class Transaction {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    // Soft delete flags
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    // Mark transaction has been edited (amount/category/note/image changed)
+    @Column(name = "is_edited")
+    private Boolean isEdited = false;
 
     @PreUpdate
     public void preUpdate() {
@@ -136,4 +149,13 @@ public class Transaction {
 
     public Long getExceededBudgetId() { return exceededBudgetId; }
     public void setExceededBudgetId(Long exceededBudgetId) { this.exceededBudgetId = exceededBudgetId; }
+
+    public Boolean getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }
+
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+
+    public Boolean getIsEdited() { return isEdited; }
+    public void setIsEdited(Boolean isEdited) { this.isEdited = isEdited; }
 }
