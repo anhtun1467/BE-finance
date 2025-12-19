@@ -1736,7 +1736,8 @@ public class WalletServiceImpl implements WalletService {
     public List<WalletTransactionHistoryDTO> getWalletTransactions(Long userId, Long walletId) {
         assertWalletAccess(walletId, userId);
 
-        List<Transaction> transactions = transactionRepository.findDetailedByWalletId(walletId);
+        // Sử dụng native query để lấy cả giao dịch đã xóa
+        List<Transaction> transactions = transactionRepository.findDetailedByWalletIdIncludingDeleted(walletId);
         return transactions.stream()
                 .map(this::mapTransactionHistory)
                 .collect(Collectors.toList());
@@ -1783,6 +1784,8 @@ public class WalletServiceImpl implements WalletService {
         dto.setTransactionDate(transaction.getTransactionDate());
         dto.setNote(transaction.getNote());
         dto.setTransactionType(transaction.getTransactionType().getTypeName());
+        dto.setIsDeleted(transaction.getIsDeleted());
+        dto.setIsEdited(transaction.getIsEdited());
 
         WalletTransactionHistoryDTO.CategoryInfo categoryInfo = new WalletTransactionHistoryDTO.CategoryInfo();
         categoryInfo.setCategoryId(transaction.getCategory().getCategoryId());
