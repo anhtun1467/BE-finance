@@ -26,6 +26,9 @@ public interface WalletTransferRepository extends JpaRepository<WalletTransfer, 
             "ORDER BY t.transferDate DESC")
     List<WalletTransfer> findByUser_UserIdOrderByTransferDateDesc(@Param("userId") Long userId);
 
+    @Query(value = "SELECT * FROM wallet_transfers WHERE user_id = :userId ORDER BY transfer_date DESC", nativeQuery = true)
+    List<WalletTransfer> findAllByUser_UserIdOrderByTransferDateDescIncludingDeleted(@Param("userId") Long userId);
+
     /**
      * Lấy transfers của một ví cụ thể (cả gửi và nhận)
      * Sử dụng JOIN FETCH để load relationships và tránh lazy loading exception
@@ -37,6 +40,9 @@ public interface WalletTransferRepository extends JpaRepository<WalletTransfer, 
             "WHERE t.fromWallet.walletId = :walletId OR t.toWallet.walletId = :walletId " +
             "ORDER BY t.transferDate DESC")
     List<WalletTransfer> findByWalletId(@Param("walletId") Long walletId);
+
+    @Query(value = "SELECT * FROM wallet_transfers WHERE from_wallet_id = :walletId OR to_wallet_id = :walletId ORDER BY transfer_date DESC", nativeQuery = true)
+    List<WalletTransfer> findByWalletIdIncludingDeleted(@Param("walletId") Long walletId);
 
     /**
      * Lấy transfers từ một ví cụ thể (chỉ gửi đi)
