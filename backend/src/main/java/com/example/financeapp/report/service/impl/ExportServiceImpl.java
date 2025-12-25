@@ -12,6 +12,9 @@ import com.example.financeapp.wallet.entity.Wallet;
 import com.example.financeapp.wallet.entity.WalletTransfer;
 import com.example.financeapp.wallet.repository.WalletRepository;
 import com.example.financeapp.wallet.repository.WalletTransferRepository;
+import com.example.financeapp.fund.entity.FundTransaction;
+import com.example.financeapp.fund.repository.FundTransactionRepository;
+import com.example.financeapp.fund.entity.FundTransactionType;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -55,6 +58,9 @@ public class ExportServiceImpl implements ExportService {
 
     @Autowired
     private WalletTransferRepository walletTransferRepository;
+
+    @Autowired
+    private FundTransactionRepository fundTransactionRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
@@ -206,10 +212,37 @@ public class ExportServiceImpl implements ExportService {
             }
         }
 
+        // Lấy fund transactions
+        List<FundTransaction> fundTransactions = null;
+        if (request.getWalletId() != null) {
+            fundTransactions = fundTransactionRepository.findByWalletId(request.getWalletId());
+        } else {
+            fundTransactions = fundTransactionRepository.findByUserId(userId);
+        }
+
+        // Lọc fund transactions theo date range
+        if (fundTransactions != null && (startDate != null || endDate != null)) {
+            final LocalDate finalStartDate = startDate;
+            final LocalDate finalEndDate = endDate;
+            fundTransactions = fundTransactions.stream()
+                    .filter(t -> {
+                        if (t.getCreatedAt() == null) return false;
+                        LocalDate txDate = t.getCreatedAt().toLocalDate();
+                        if (finalStartDate != null && txDate.isBefore(finalStartDate)) {
+                            return false;
+                        }
+                        if (finalEndDate != null && txDate.isAfter(finalEndDate)) {
+                            return false;
+                        }
+                        return true;
+                    })
+                    .collect(Collectors.toList());
+        }
+
         if (request.getFormat() == ExportRequest.ExportFormat.EXCEL) {
             return generateTransactionsExcel(transactions, userId);
         } else {
-            return generateTransactionsPDF(transactions, transfers, wallet, request);
+            return generateTransactionsPDF(transactions, transfers, fundTransactions, wallet, request);
         }
     }
 
@@ -747,7 +780,7 @@ public class ExportServiceImpl implements ExportService {
         }
     }
 
-    private Resource generateTransactionsPDF(List<Transaction> transactions, List<WalletTransfer> transfers, Wallet wallet, ExportRequest request) {
+    private Resource generateTransactionsPDF(List<Transaction> transactions, List<WalletTransfer> transfers, List<FundTransaction> fundTransactions, Wallet wallet, ExportRequest request) {
         try (PDDocument document = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
@@ -843,7 +876,15 @@ public class ExportServiceImpl implements ExportService {
                 yPosition -= smallLineHeight;
 
                 // Total transactions
-                int totalCount = transactions.size() + (transfers != null ? transfers.size() : 0);
+                int totalCount = transactions.size() +
+                        (transfers != null ? (int)transfers.stream().filter(t -> {
+                            String note = t.getNote() != null ? t.getNote().toLowerCase() : "";
+                            return !note.contains("nạp vào quỹ") &&
+                                    !note.contains("rút tiền từ quỹ") &&
+                                    !note.contains("fund deposit") &&
+                                    !note.contains("fund withdraw");
+                        }).count() : 0) +
+                        (fundTransactions != null ? fundTransactions.size() : 0);
                 contentStream.beginText();
                 contentStream.newLineAtOffset(margin, yPosition);
                 String totalText = useUnicodeFont
@@ -942,17 +983,34 @@ public class ExportServiceImpl implements ExportService {
                 List<Object> allItems = new ArrayList<>();
                 allItems.addAll(transactions);
                 if (transfers != null) {
-                    allItems.addAll(transfers);
+                    // Filter out transfers related to fund transactions to avoid duplication
+                    List<WalletTransfer> filteredTransfers = transfers.stream()
+                            .filter(t -> {
+                                String note = t.getNote() != null ? t.getNote().toLowerCase() : "";
+                                return !note.contains("nạp vào quỹ") &&
+                                        !note.contains("rút tiền từ quỹ") &&
+                                        !note.contains("fund deposit") &&
+                                        !note.contains("fund withdraw");
+                            })
+                            .collect(Collectors.toList());
+                    allItems.addAll(filteredTransfers);
+                }
+                if (fundTransactions != null) {
+                    allItems.addAll(fundTransactions);
                 }
 
                 // Sort by date (descending)
                 allItems.sort((a, b) -> {
-                    LocalDateTime dateA = a instanceof Transaction
-                            ? ((Transaction) a).getTransactionDate()
-                            : ((WalletTransfer) a).getTransferDate();
-                    LocalDateTime dateB = b instanceof Transaction
-                            ? ((Transaction) b).getTransactionDate()
-                            : ((WalletTransfer) b).getTransferDate();
+                    LocalDateTime dateA = null;
+                    if (a instanceof Transaction) dateA = ((Transaction) a).getTransactionDate();
+                    else if (a instanceof WalletTransfer) dateA = ((WalletTransfer) a).getTransferDate();
+                    else if (a instanceof FundTransaction) dateA = ((FundTransaction) a).getCreatedAt();
+
+                    LocalDateTime dateB = null;
+                    if (b instanceof Transaction) dateB = ((Transaction) b).getTransactionDate();
+                    else if (b instanceof WalletTransfer) dateB = ((WalletTransfer) b).getTransferDate();
+                    else if (b instanceof FundTransaction) dateB = ((FundTransaction) b).getCreatedAt();
+
                     if (dateA == null && dateB == null) return 0;
                     if (dateA == null) return 1;
                     if (dateB == null) return -1;
@@ -962,14 +1020,14 @@ public class ExportServiceImpl implements ExportService {
                 for (Object item : allItems) {
                     if (yPosition < 80) {
                         contentStream.close();
-                        page = new PDPage(PDRectangle.A4);
+                        page = new PDPage(new PDRectangle(PDRectangle.A4.getHeight(), PDRectangle.A4.getWidth()));
                         document.addPage(page);
                         contentStream = new PDPageContentStream(document, page);
                         fontRegular = loadVietnameseFont(document);
                         fontBold = loadVietnameseFont(document);
                         useUnicodeFont = !(fontRegular instanceof PDType1Font);
                         contentStream.setFont(fontRegular, 9);
-                        yPosition = 750;
+                        yPosition = 500; // Reset yPosition for new page (Landscape)
                         tableTopY = yPosition;
                         tableBottomY = yPosition - 15;
                     }
@@ -1053,6 +1111,52 @@ public class ExportServiceImpl implements ExportService {
                         }
 
                         currency = t.getCurrencyCode() != null ? t.getCurrencyCode() : "VND";
+                    } else if (item instanceof FundTransaction) {
+                        FundTransaction t = (FundTransaction) item;
+                        // FundTransaction doesn't have soft delete flag exposed here easily, assume active
+
+                        dateTimeStr = t.getCreatedAt() != null
+                                ? t.getCreatedAt().format(DATETIME_FORMATTER)
+                                : "";
+
+                        String fundName = t.getFund() != null ? t.getFund().getFundName() : "Quỹ";
+                        memberName = t.getPerformedBy() != null ? t.getPerformedBy().getEmail() : "";
+
+                        boolean isIncoming = false;
+                        if (wallet != null && t.getFund() != null && t.getFund().getSourceWallet() != null) {
+                            // Withdraw: Fund -> Wallet (Incoming for Wallet)
+                            if (t.getType() == FundTransactionType.WITHDRAW) {
+                                if (t.getFund().getSourceWallet().getWalletId().equals(wallet.getWalletId())) {
+                                    isIncoming = true;
+                                }
+                            }
+                            // Deposit: Wallet -> Fund (Outgoing for Wallet)
+                            else if (t.getType() == FundTransactionType.DEPOSIT || t.getType() == FundTransactionType.AUTO_DEPOSIT || t.getType() == FundTransactionType.AUTO_DEPOSIT_RECOVERY) {
+                                if (t.getFund().getSourceWallet().getWalletId().equals(wallet.getWalletId())) {
+                                    isIncoming = false;
+                                }
+                            }
+                        }
+
+                        if (isIncoming) {
+                            typeStr = useUnicodeFont ? "Nhận từ ví khác" : normalizeVietnameseText("Nhan tu vi khac");
+                            description = (useUnicodeFont ? "Từ: " : "Tu: ") + fundName + (useUnicodeFont ? " - Ví Quỹ" : " - Vi Quy");
+                            totalReceivedFromOther = totalReceivedFromOther.add(t.getAmount());
+                            amountStr = "+" + formatCurrency(t.getAmount());
+                        } else {
+                            typeStr = useUnicodeFont ? "Chuyển sang ví khác" : normalizeVietnameseText("Chuyen sang vi khac");
+                            description = (useUnicodeFont ? "Đến: " : "Den: ") + fundName + (useUnicodeFont ? " - Ví Quỹ" : " - Vi Quy");
+                            totalTransferredToOther = totalTransferredToOther.add(t.getAmount());
+                            amountStr = "-" + formatCurrency(t.getAmount());
+                        }
+
+                        if (!useUnicodeFont) {
+                            fundName = normalizeVietnameseText(fundName);
+                            description = normalizeVietnameseText(description);
+                            memberName = normalizeVietnameseText(memberName);
+                        }
+
+                        currency = t.getFund() != null && t.getFund().getTargetWallet() != null ? t.getFund().getTargetWallet().getCurrencyCode() : "VND";
                     }
 
                     // Truncate long text

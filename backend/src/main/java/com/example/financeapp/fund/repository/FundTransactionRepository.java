@@ -31,5 +31,25 @@ public interface FundTransactionRepository extends JpaRepository<FundTransaction
           AND DATE(tx.createdAt) = CURRENT_DATE
         """)
     List<FundTransaction> findTodayManualDeposits(@Param("fundId") Long fundId);
+
+    @Query("""
+        SELECT tx FROM FundTransaction tx
+        JOIN FETCH tx.fund f
+        LEFT JOIN FETCH tx.performedBy u
+        WHERE (f.sourceWallet.walletId = :walletId OR f.targetWallet.walletId = :walletId)
+          AND tx.status = com.example.financeapp.fund.entity.FundTransactionStatus.SUCCESS
+        ORDER BY tx.createdAt DESC
+        """)
+    List<FundTransaction> findByWalletId(@Param("walletId") Long walletId);
+
+    @Query("""
+        SELECT tx FROM FundTransaction tx
+        JOIN FETCH tx.fund f
+        LEFT JOIN FETCH tx.performedBy u
+        WHERE f.owner.userId = :userId
+          AND tx.status = com.example.financeapp.fund.entity.FundTransactionStatus.SUCCESS
+        ORDER BY tx.createdAt DESC
+        """)
+    List<FundTransaction> findByUserId(@Param("userId") Long userId);
 }
 
